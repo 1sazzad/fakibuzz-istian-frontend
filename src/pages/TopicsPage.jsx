@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
 import { useNavigate } from "react-router-dom";
 
+function normalizeSubjects(payload) {
+  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
+
+  return rawSubjects
+    .map((subject) => ({
+      subject_code: String(subject?.subject_code ?? subject?.code ?? subject?.subjectCode ?? "").trim(),
+      subject_name: String(subject?.subject_name ?? subject?.name ?? subject?.subjectName ?? "").trim(),
+    }))
+    .filter((subject) => Boolean(subject.subject_code));
+}
+
 function extractTopics(analysis) {
   return analysis?.topics || analysis?.analysis || analysis?.repeated_topics || [];
 }
@@ -18,38 +29,51 @@ function TopicsPage() {
   useEffect(() => {
     let active = true;
 
-    apiEndpoints.getSubjects()
-      .then((response) => {
+    async function initialize() {
+      try {
+        const response = await apiEndpoints.getSubjects();
+
         if (!active) {
           return;
         }
 
-        const subjectList = response.data?.subjects || [];
+        const subjectList = normalizeSubjects(response.data);
         setSubjects(subjectList);
 
-        if (subjectList.length > 0) {
-          const subjectCode = subjectList[0].subject_code;
-          setSelectedSubject(subjectCode);
-          return apiEndpoints.getSubjectAnalysis(subjectCode).then((analysisResponse) => {
-            if (active) {
-              setAnalysis(analysisResponse.data);
-            }
-          });
+        if (subjectList.length === 0) {
+          setMessage("Subject list is unavailable. Enter a subject code manually to load analysis.");
+          return;
         }
 
-        return null;
-      })
-      .catch((error) => {
+        const subjectCode = subjectList[0].subject_code;
+        setSelectedSubject(subjectCode);
+
+        try {
+          const analysisResponse = await apiEndpoints.getSubjectAnalysis(subjectCode);
+          if (active) {
+            setAnalysis(analysisResponse.data);
+          }
+        } catch (error) {
+          console.error(error);
+          if (active) {
+            setAnalysis(null);
+            setMessage(error.response?.data?.detail || "Subjects loaded, but analysis data could not be loaded for the selected subject.");
+          }
+        }
+      } catch (error) {
         console.error(error);
         if (active) {
-          setMessage("Unable to load subjects for analysis.");
+          setSubjects([]);
+          setMessage("Subject list could not be loaded. Enter a subject code manually.");
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    initialize();
 
     return () => {
       active = false;
@@ -70,6 +94,32 @@ function TopicsPage() {
 
     try {
       const response = await apiEndpoints.getSubjectAnalysis(subjectCode);
+      setAnalysis(response.data);
+    } catch (error) {
+      console.error(error);
+      setAnalysis(null);
+      setMessage(error.response?.data?.detail || "Unable to load analysis for this subject.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSubjectInputChange(event) {
+    setSelectedSubject(event.target.value);
+    setMessage("");
+  }
+
+  async function handleLoadAnalysis() {
+    if (!selectedSubject.trim()) {
+      setMessage("Enter a subject code first.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await apiEndpoints.getSubjectAnalysis(selectedSubject.trim());
       setAnalysis(response.data);
     } catch (error) {
       console.error(error);
@@ -121,18 +171,34 @@ function TopicsPage() {
 
             <div className="min-w-72">
               <label className="block text-sm font-medium text-slate-700">Subject code</label>
-              <select
-                value={selectedSubject}
-                onChange={handleSubjectChange}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+              {subjects.length > 0 ? (
+                <select
+                  value={selectedSubject}
+                  onChange={handleSubjectChange}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+                >
+                  <option value="">Select a subject</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.subject_code} value={subject.subject_code}>
+                      {subject.subject_code} - {subject.subject_name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={selectedSubject}
+                  onChange={handleSubjectInputChange}
+                  placeholder="Enter subject code, e.g. CSE-421"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+                />
+              )}
+              <button
+                type="button"
+                onClick={handleLoadAnalysis}
+                className="mt-3 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                <option value="">Select a subject</option>
-                {subjects.map((subject) => (
-                  <option key={subject.subject_code} value={subject.subject_code}>
-                    {subject.subject_code} - {subject.subject_name}
-                  </option>
-                ))}
-              </select>
+                Load analysis
+              </button>
             </div>
           </div>
         </section>

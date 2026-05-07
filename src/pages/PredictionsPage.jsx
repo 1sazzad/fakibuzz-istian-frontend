@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
 import { useNavigate } from "react-router-dom";
 
+function normalizeSubjects(payload) {
+  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
+
+  return rawSubjects
+    .map((subject) => ({
+      subject_code: String(subject?.subject_code ?? subject?.code ?? subject?.subjectCode ?? "").trim(),
+      subject_name: String(subject?.subject_name ?? subject?.name ?? subject?.subjectName ?? "").trim(),
+    }))
+    .filter((subject) => Boolean(subject.subject_code));
+}
+
 function PredictionsPage() {
   const [predictions, setPredictions] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -14,38 +25,51 @@ function PredictionsPage() {
   useEffect(() => {
     let active = true;
 
-    apiEndpoints.getSubjects()
-      .then((response) => {
+    async function initialize() {
+      try {
+        const response = await apiEndpoints.getSubjects();
+
         if (!active) {
           return;
         }
 
-        const subjectList = response.data?.subjects || [];
+        const subjectList = normalizeSubjects(response.data);
         setSubjects(subjectList);
 
-        if (subjectList.length > 0) {
-          const subjectCode = subjectList[0].subject_code;
-          setSelectedSubject(subjectCode);
-          return apiEndpoints.getSubjectPrediction(subjectCode).then((predictionResponse) => {
-            if (active) {
-              setPredictions(predictionResponse.data?.predictions || predictionResponse.data?.questions || predictionResponse.data?.items || []);
-            }
-          });
+        if (subjectList.length === 0) {
+          setMessage("Subject list is unavailable. Enter a subject code manually to load predictions.");
+          return;
         }
 
-        return null;
-      })
-      .catch((error) => {
+        const subjectCode = subjectList[0].subject_code;
+        setSelectedSubject(subjectCode);
+
+        try {
+          const predictionResponse = await apiEndpoints.getSubjectPrediction(subjectCode);
+          if (active) {
+            setPredictions(predictionResponse.data?.predictions || predictionResponse.data?.questions || predictionResponse.data?.items || []);
+          }
+        } catch (error) {
+          console.error(error);
+          if (active) {
+            setPredictions([]);
+            setMessage(error.response?.data?.detail || "Subjects loaded, but prediction data could not be loaded for the selected subject.");
+          }
+        }
+      } catch (error) {
         console.error(error);
         if (active) {
-          setMessage("Unable to load subjects for prediction.");
+          setSubjects([]);
+          setMessage("Subject list could not be loaded. Enter a subject code manually.");
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) {
           setLoading(false);
         }
-      });
+      }
+    }
+
+    initialize();
 
     return () => {
       active = false;
@@ -66,6 +90,32 @@ function PredictionsPage() {
 
     try {
       const response = await apiEndpoints.getSubjectPrediction(subjectCode);
+      setPredictions(response.data?.predictions || response.data?.questions || response.data?.items || []);
+    } catch (error) {
+      console.error(error);
+      setPredictions([]);
+      setMessage(error.response?.data?.detail || "Prediction lookup failed for this subject.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSubjectInputChange(event) {
+    setSelectedSubject(event.target.value);
+    setMessage("");
+  }
+
+  async function handleLoadPredictions() {
+    if (!selectedSubject.trim()) {
+      setMessage("Enter a subject code first.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const response = await apiEndpoints.getSubjectPrediction(selectedSubject.trim());
       setPredictions(response.data?.predictions || response.data?.questions || response.data?.items || []);
     } catch (error) {
       console.error(error);
@@ -133,17 +183,34 @@ function PredictionsPage() {
 
             <div className="min-w-72">
               <label className="block text-sm font-medium text-slate-700">Subject code</label>
-              <select
-                value={selectedSubject}
-                onChange={handleSubjectChange}
-                className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+              {subjects.length > 0 ? (
+                <select
+                  value={selectedSubject}
+                  onChange={handleSubjectChange}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+                >
+                  <option value="">Select a subject</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.subject_code} value={subject.subject_code}>
+                      {subject.subject_code} - {subject.subject_name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={selectedSubject}
+                  onChange={handleSubjectInputChange}
+                  placeholder="Enter subject code, e.g. CSE-421"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+                />
+              )}
+              <button
+                type="button"
+                onClick={handleLoadPredictions}
+                className="mt-3 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
               >
-                {subjects.map((subject) => (
-                  <option key={subject.subject_code} value={subject.subject_code}>
-                    {subject.subject_code} - {subject.subject_name}
-                  </option>
-                ))}
-              </select>
+                Load predictions
+              </button>
             </div>
           </div>
         </section>

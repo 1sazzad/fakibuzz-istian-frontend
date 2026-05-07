@@ -28,6 +28,11 @@ The frontend service layer in [src/api/api.js](src/api/api.js) targets the curre
 - `POST /answers/generate`
 - `POST /admin/exams`
 
+During local development, Vite proxies frontend requests from `/api/*` to `http://127.0.0.1:8000/*` (see `vite.config.js`).
+This avoids browser CORS issues for cross-origin admin `POST` routes.
+
+To override the API host directly, set `VITE_API_BASE_URL` in an `.env` file.
+
 The frontend does not currently surface the optional student upload or extraction workflow in the UI.
 
 ## Project Structure
