@@ -23,7 +23,6 @@ const adminNavItems = [
   { to: "/admin/upload", label: "Upload" },
   { to: "/admin/questions", label: "Questions" },
   { to: "/admin/subjects", label: "Subjects" },
-  { to: "/admin/topic-review", label: "Topic Review" },
 ];
 
 function navClass({ isActive }) {

@@ -86,40 +86,31 @@ function ManageSubjectsPage() {
       const nextTopics = normalizeTopics(response.data);
       setTopics(nextTopics);
 
-      if (nextTopics.length === 0 && response.data?.pending_review_count > 0) {
-        setMessage("Topics are pending admin review. Approve topics before analysis is available.");
+      if (nextTopics.length === 0) {
+        setMessage("No analysis topics are available for this subject yet.");
       } else {
-        setMessage(`Loaded approved analysis topics for ${subjectCode}.`);
+        setMessage(`Loaded analysis topics for ${subjectCode}.`);
       }
     } catch (err) {
       setTopics([]);
-      setError(getErrorMessage(err, "Unable to load approved analysis topics."));
+      setError(getErrorMessage(err, "Unable to load analysis topics."));
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadDebug(type, subjectCode = selectedSubject) {
-    if (!subjectCode) {
-      setError("Select a subject first.");
-      return;
-    }
-
+  async function loadSystemStatus() {
     setLoading(true);
     setError("");
     setMessage("");
 
     try {
-      const response =
-        type === "questions"
-          ? await apiEndpoints.getAdminQuestionsDebug(subjectCode)
-          : await apiEndpoints.getAdminPipelineDebug(subjectCode);
-
-      setDebugResult({ type, subjectCode, data: response.data });
-      setMessage(`Loaded ${type} debug for ${subjectCode}.`);
+      const response = await apiEndpoints.getSystemStatus();
+      setDebugResult({ data: response.data });
+      setMessage("Loaded system status.");
     } catch (err) {
       setDebugResult(null);
-      setError(getErrorMessage(err, "Unable to load debug data."));
+      setError(getErrorMessage(err, "Unable to load system status."));
     } finally {
       setLoading(false);
     }
@@ -182,7 +173,7 @@ function ManageSubjectsPage() {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-700">Admin</p>
           <h1 className="mt-3 text-3xl font-semibold text-slate-950">Manage Subjects</h1>
-          <p className="mt-2 text-sm text-slate-500">Publish, inspect, or delete subject data and approved topics.</p>
+          <p className="mt-2 text-sm text-slate-500">Publish, inspect, or delete subject data and analysis topics.</p>
 
             <div className="mt-6 flex flex-wrap gap-3">
             {["draft", "published", ""].map((item) => (
@@ -200,11 +191,8 @@ function ManageSubjectsPage() {
             <button type="button" onClick={() => loadSubjects(status)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
               Refresh
             </button>
-            <button type="button" onClick={() => loadDebug("pipeline")} disabled={!selectedSubject || loading} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
-              Pipeline debug
-            </button>
-            <button type="button" onClick={() => loadDebug("questions")} disabled={!selectedSubject || loading} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
-              Questions debug
+            <button type="button" onClick={loadSystemStatus} disabled={loading} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+              System status
             </button>
           </div>
 
@@ -215,7 +203,7 @@ function ManageSubjectsPage() {
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-950 p-4 text-sm text-slate-100">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="font-semibold">
-                  {debugResult.type === "questions" ? "Questions debug" : "Pipeline debug"}: {debugResult.subjectCode}
+                  System status
                 </p>
                 <button type="button" onClick={() => setDebugResult(null)} className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200">
                   Hide
@@ -270,7 +258,7 @@ function ManageSubjectsPage() {
                 <p className="mt-1 text-sm text-slate-500">Selected subject: {selectedSubject || "none"}</p>
               </div>
               <button type="button" onClick={() => loadTopics()} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-                Load approved topics
+                Load analysis topics
               </button>
             </div>
 
@@ -299,7 +287,7 @@ function ManageSubjectsPage() {
                 );
               })}
 
-              {topics.length === 0 && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No approved topics loaded.</p>}
+              {topics.length === 0 && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No analysis topics loaded.</p>}
             </div>
           </section>
         </div>
@@ -314,7 +302,7 @@ function ManageSubjectsPage() {
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               {confirmAction.type === "subject"
-                ? "This removes all exams, questions, topic reviews, taxonomy topics, and vectors for this subject."
+                ? "This removes all exams, questions, taxonomy topics, and vectors for this subject."
                 : "This removes or unassigns the topic from analysis for this subject."}
             </p>
             <div className="mt-6 flex justify-end gap-3">

@@ -696,7 +696,7 @@ function UploadPage() {
                   {isBatchMode ? "Batch upload" : "Exam details"}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {isBatchMode ? "Submit multiple exams at once from JSON." : "These fields are sent directly to POST /exams/import-json."}
+                  {isBatchMode ? "Submit multiple exams at once from JSON." : "These fields are sent directly to POST /admin/exams/import."}
                 </p>
               </div>
               {!isBatchMode && (

@@ -6,7 +6,6 @@ import { Badge, Button, Card, ErrorMessage, PageHeader, ResponsiveContainer } fr
 
 const adminWorkflows = [
   { to: "/admin/upload", title: "Upload Questions", description: "Import admin exam JSON and create embeddings.", badge: "Ingest" },
-  { to: "/admin/topic-review", title: "Topic Review", description: "Check missing or generated topics before publishing.", badge: "Review" },
   { to: "/admin/questions", title: "Manage Questions", description: "Review and maintain stored question data.", badge: "Data" },
   { to: "/admin/subjects", title: "Manage Subjects", description: "Publish subjects for student access.", badge: "Publish" },
 ];
@@ -64,10 +63,10 @@ function AdminDashboardPage() {
       <PageHeader
         eyebrow="Admin Dashboard"
         title={`Welcome, ${user?.full_name || "Admin"}`}
-        description="Manage uploaded exams, question records, topic review, and published subjects."
+        description="Manage uploaded exams, question records, and published subjects."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {adminWorkflows.map((item) => (
           <Link key={item.to} to={item.to} className="group">
             <Card className="h-full transition group-hover:-translate-y-0.5 group-hover:border-indigo-200 group-hover:shadow-md">

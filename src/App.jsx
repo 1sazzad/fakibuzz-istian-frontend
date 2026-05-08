@@ -23,7 +23,6 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUploadPage from "./pages/admin/AdminUploadPage";
 import ManageQuestionsPage from "./pages/admin/ManageQuestionsPage";
 import ManageSubjectsPage from "./pages/admin/ManageSubjectsPage";
-import TopicReviewPage from "./pages/admin/TopicReviewPage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -75,7 +74,6 @@ function App() {
           <Route element={<AdminRoute />}>
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/upload" element={<AdminUploadPage />} />
-            <Route path="/admin/topic-review" element={<TopicReviewPage />} />
             <Route path="/admin/questions" element={<ManageQuestionsPage />} />
             <Route path="/admin/subjects" element={<ManageSubjectsPage />} />
 

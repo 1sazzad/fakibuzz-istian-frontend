@@ -119,23 +119,18 @@ export const apiEndpoints = {
       responseType: "blob",
     }),
   generateAnswer: (payload) => API.post("/generate-answer", payload),
-  importAdminExams: (payload) => API.post("/exams/import-json", payload, {
+  importAdminExams: (payload) => API.post("/admin/exams/import", payload, {
     headers: { "Content-Type": "application/json; charset=utf-8" },
   }),
   importAdminExamFile: (file) => {
     const formData = new FormData();
     formData.append("file", file);
-    return API.post("/exams/import-json", formData);
+    return API.post("/admin/exams/import", formData);
   },
   publishSubject: (subjectCode) => API.post(`/admin/subjects/${encodePath(subjectCode)}/publish`),
   deleteSubject: (subjectCode) => API.delete(`/admin/subjects/${encodePath(subjectCode)}`),
   deleteSubjectTopic: (subjectCode, topicName) => API.delete(`/admin/subjects/${encodePath(subjectCode)}/topics/${encodePath(topicName)}`),
-  getTopicReview: (params) => API.get("/admin/topic-review", { params }),
-  generateTopicReview: (payload) => API.post("/admin/topic-review/generate", payload),
-  approveTopicCluster: (clusterId, payload) => API.post(`/admin/topic-review/${encodePath(clusterId)}/approve`, payload),
-  rejectTopicCluster: (clusterId) => API.post(`/admin/topic-review/${encodePath(clusterId)}/reject`),
-  getAdminPipelineDebug: (subjectCode) => API.get(`/admin/debug/pipeline/${encodePath(subjectCode)}`),
-  getAdminQuestionsDebug: (subjectCode) => API.get(`/admin/debug/questions/${encodePath(subjectCode)}`),
+  getSystemStatus: () => API.get("/debug/system-status"),
 };
 
 export { buildQuery };

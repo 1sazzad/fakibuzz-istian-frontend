@@ -88,19 +88,36 @@ function getSuggestionsMessage(payload, count) {
     return payload.message;
   }
 
-  if (payload?.pending_review_count > 0) {
-    return `Topics are pending admin review. ${payload.pending_review_count} item(s) need approval.`;
+  const retrievalSource = payload?.retrieval_source || payload?.diagnostics?.retrieval_source;
+  const fallbackUsed = Boolean(payload?.fallback_used || payload?.diagnostics?.fallback_used);
+
+  if (fallbackUsed) {
+    return "Suggestions were generated from published question history.";
   }
 
-  if (payload?.diagnostics?.mode === "analysis_first") {
-    return "Suggestions are based mainly on repeated topic analysis.";
-  }
-
-  if (payload?.diagnostics?.mode === "semantic_search") {
-    return "Suggestions are based mainly on semantic similarity to your query.";
+  if (retrievalSource === "vector") {
+    return "Suggestions were generated from semantic search.";
   }
 
   return `Found ${count} suggestion(s).`;
+}
+
+function getSuggestionStatus(payload) {
+  const retrievalSource = payload?.retrieval_source || payload?.diagnostics?.retrieval_source;
+  const fallbackUsed = Boolean(payload?.fallback_used || payload?.diagnostics?.fallback_used);
+  const contextCount = payload?.diagnostics?.context_questions_count;
+
+  if (fallbackUsed || retrievalSource === "sqlite") {
+    return "Suggestions were generated from published question history.";
+  }
+
+  if (retrievalSource === "vector") {
+    return typeof contextCount === "number"
+      ? `Suggestions were generated from semantic search using ${contextCount} context question(s).`
+      : "Suggestions were generated from semantic search.";
+  }
+
+  return "";
 }
 
 function getSuggestionText(item) {
@@ -222,11 +239,12 @@ function SuggestionsPage() {
         top_k: Number(topK) || 10,
       });
       const nextSuggestions = normalizeSuggestions(response.data);
+      const statusMessage = getSuggestionStatus(response.data);
       setSuggestions(nextSuggestions);
       setMessage(getSuggestionsMessage(response.data, nextSuggestions.length));
-      setModeMessage(getSuggestionsMessage(response.data, nextSuggestions.length));
+      setModeMessage(statusMessage);
       setWarning(response.data?.warning || "");
-      setFallbackWarning(response.data?.diagnostics?.fallback_used ? "Vector search was unavailable, so suggestions were generated from published question history." : "");
+      setFallbackWarning("");
     } catch (error) {
       console.error(error);
       setMessage(getErrorMessage(error, "Unable to generate suggestions."));
