@@ -13,10 +13,36 @@ function createQuestion() {
 function normalizeQuestion(question = {}) {
   return {
     question_no: String(question.question_no ?? "").trim(),
-    question_text: String(question.question_text ?? question.text ?? "").trim(),
+    question_text: String(question.question_text ?? question.text ?? question.question ?? "").trim(),
     marks: question.marks ?? "",
-    topic: String(question.topic ?? "").trim(),
+    topic: String(question.topic || "Uncategorized").trim(),
   };
+}
+
+function expandImportedPayload(rawPayload) {
+  if (Array.isArray(rawPayload)) {
+    return rawPayload;
+  }
+
+  if (Array.isArray(rawPayload?.exams)) {
+    return rawPayload.exams;
+  }
+
+  if (Array.isArray(rawPayload?.all_years_questions)) {
+    return rawPayload.all_years_questions.map((yearExam) => ({
+      exam_name: rawPayload.exam_name || yearExam.exam_name || "Final Examination",
+      exam_year: yearExam.exam_year ?? rawPayload.exam_year ?? new Date().getFullYear(),
+      subject_name: rawPayload.subject_name || yearExam.subject_name || "",
+      subject_code: rawPayload.subject_code || yearExam.subject_code || "",
+      time: rawPayload.time || yearExam.time || "3 hours",
+      total_marks: rawPayload.total_marks ?? yearExam.total_marks ?? 80,
+      questions: yearExam.questions || [],
+      status: rawPayload.status || yearExam.status || "draft",
+      source_type: rawPayload.source_type || yearExam.source_type || "admin_uploaded",
+    }));
+  }
+
+  return rawPayload;
 }
 
 function normalizeImportedExam(rawPayload) {
@@ -28,10 +54,109 @@ function normalizeImportedExam(rawPayload) {
     exam_year: payload?.exam_year ?? new Date().getFullYear(),
     subject_name: String(payload?.subject_name ?? "").trim(),
     subject_code: String(payload?.subject_code ?? "").trim(),
-    time: String(payload?.time ?? "3 hours").trim(),
-    total_marks: payload?.total_marks ?? 60,
+    time: String(payload?.time || "3 hours").trim(),
+    total_marks: payload?.total_marks ?? 80,
     questions: questions.length > 0 ? questions : [createQuestion()],
   };
+}
+
+function buildSubjectCodeLookup(exams) {
+  return exams.reduce((lookup, rawExam) => {
+    const subjectName = String(rawExam?.subject_name ?? "").trim().toLowerCase();
+    const subjectCode = String(rawExam?.subject_code ?? "").trim();
+
+    if (subjectName && subjectCode) {
+      lookup.set(subjectName, subjectCode);
+    }
+
+    return lookup;
+  }, new Map());
+}
+
+function normalizeSingleExamPayload(rawExam) {
+  const normalizedExam = normalizeImportedExam(rawExam);
+  const totalMarks = Number(normalizedExam.total_marks);
+  const questions = normalizedExam.questions
+    .map((question) => ({
+      question_no: String(question.question_no).trim(),
+      question_text: String(question.question_text).trim(),
+      marks: Number(question.marks),
+      topic: String(question.topic || "Uncategorized").trim(),
+    }))
+    .filter((question) => question.question_no && question.question_text && Number.isFinite(question.marks));
+
+  if (!normalizedExam.exam_name || !normalizedExam.subject_name || !normalizedExam.subject_code) {
+    throw new Error("Exam name, subject name, and subject code are required.");
+  }
+
+  if (questions.length === 0) {
+    throw new Error("Add at least one valid question before saving.");
+  }
+
+  return {
+    ...rawExam,
+    exam_name: normalizedExam.exam_name,
+    exam_year: Number(normalizedExam.exam_year) || new Date().getFullYear(),
+    subject_name: normalizedExam.subject_name,
+    subject_code: normalizedExam.subject_code,
+    time: normalizedExam.time || "3 hours",
+    total_marks: Number.isFinite(totalMarks) && totalMarks > 0 ? totalMarks : 80,
+    questions,
+    status: rawExam?.status || "draft",
+    source_type: rawExam?.source_type || "admin_uploaded",
+  };
+}
+
+function normalizeBatchPayload(rawPayload) {
+  const expandedPayload = expandImportedPayload(rawPayload);
+
+  if (!Array.isArray(expandedPayload)) {
+    throw new Error("Batch upload must be a JSON array of exams.");
+  }
+
+  const subjectCodeLookup = buildSubjectCodeLookup(expandedPayload);
+
+  return expandedPayload.map((rawExam, examIndex) => {
+    const normalizedExam = normalizeImportedExam(rawExam);
+    const subjectCode = normalizedExam.subject_code || subjectCodeLookup.get(normalizedExam.subject_name.toLowerCase()) || "";
+
+    if (!subjectCode) {
+      throw new Error(`Exam #${examIndex + 1} is missing subject_name or subject_code.`);
+    }
+
+    return normalizeSingleExamPayload({
+      ...rawExam,
+      subject_code: subjectCode,
+    });
+  });
+}
+
+function formatValue(value, fallback = "-") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => formatValue(item)).join(", ");
+  }
+
+  if (typeof value === "object") {
+    if (value.msg || value.message || value.error || value.detail) {
+      return formatValue(value.msg || value.message || value.error || value.detail);
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
+    }
+  }
+
+  return String(value);
+}
+
+function getErrorMessage(errorData, fallback) {
+  return formatValue(errorData?.detail || errorData?.message || errorData?.error, fallback);
 }
 
 function UploadPage() {
@@ -49,6 +174,7 @@ function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [jsonImport, setJsonImport] = useState("");
+  const [jsonFile, setJsonFile] = useState(null);
   const [jsonError, setJsonError] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [publishSubjectCode, setPublishSubjectCode] = useState("");
@@ -114,14 +240,23 @@ function UploadPage() {
   }
 
   function applyImportedExam(rawPayload) {
+    const expandedPayload = expandImportedPayload(rawPayload);
+
     // Detect if this is a batch upload (array) or single exam
-    if (Array.isArray(rawPayload)) {
-      setIsBatchMode(true);
-      setMessage(`Batch mode detected: ${rawPayload.length} exam(s) ready to upload.`);
-      setJsonError("");
+    if (Array.isArray(expandedPayload)) {
+      try {
+        normalizeBatchPayload(expandedPayload);
+        setIsBatchMode(true);
+        setMessage(`Batch mode detected: ${expandedPayload.length} exam(s) ready to upload.`);
+        setJsonError("");
+      } catch (error) {
+        console.error(error);
+        setIsBatchMode(false);
+        setJsonError(error.message || "Batch JSON is missing required exam fields.");
+      }
     } else {
       setIsBatchMode(false);
-      const importedExam = normalizeImportedExam(rawPayload);
+      const importedExam = normalizeImportedExam(expandedPayload);
       setExam(importedExam);
       setPublishSubjectCode(importedExam.subject_code);
       setMessage("JSON loaded into the form. Review the fields, then submit to the admin API.");
@@ -138,11 +273,13 @@ function UploadPage() {
 
     try {
       const fileText = await file.text();
+      setJsonFile(file);
       setJsonImport(fileText);
       applyImportedExam(JSON.parse(fileText));
     } catch (error) {
       console.error(error);
       setJsonError("Invalid JSON file. Make sure it contains exam metadata and questions.");
+      setJsonFile(null);
     }
 
     event.target.value = "";
@@ -150,6 +287,7 @@ function UploadPage() {
 
   function handleLoadJsonText() {
     try {
+      setJsonFile(null);
       applyImportedExam(JSON.parse(jsonImport));
     } catch (error) {
       console.error(error);
@@ -157,10 +295,63 @@ function UploadPage() {
     }
   }
 
+  async function handleSaveImportedJson() {
+    if (!jsonFile && !jsonImport.trim()) {
+      setJsonError("Paste or upload JSON before saving.");
+      return;
+    }
+
+    setLoading(true);
+    setJsonError("");
+    setMessage("Saving imported JSON as draft data...");
+    setUploadResponse(null);
+
+    try {
+      if (jsonFile) {
+        const response = await apiEndpoints.importAdminExamFile(jsonFile);
+        const result = response.data || {};
+
+        setUploadResponse({
+          mode: "batch",
+          ...result,
+        });
+        setMessage(formatValue(result.message, "Imported JSON file saved as drafts."));
+        return;
+      }
+
+      const parsedPayload = JSON.parse(jsonImport);
+      const expandedPayload = expandImportedPayload(parsedPayload);
+      const isBatchPayload = Array.isArray(expandedPayload);
+      const payload = isBatchPayload ? normalizeBatchPayload(expandedPayload) : normalizeSingleExamPayload(expandedPayload);
+      const response = await apiEndpoints.importAdminExams(payload);
+      const result = response.data || {};
+
+      setUploadResponse({
+        mode: isBatchPayload ? "batch" : "single",
+        ...result,
+      });
+      setMessage(formatValue(result.message, isBatchPayload ? "Batch drafts saved." : "Draft exam saved."));
+      applyImportedExam(parsedPayload);
+    } catch (error) {
+      console.error(error);
+      const errorData = error.response?.data || {};
+      const errorMessage = error.response
+        ? getErrorMessage(errorData, "Imported JSON save failed.")
+        : error.message || "Invalid JSON. Check the file format.";
+
+      setUploadResponse({
+        mode: "import",
+        error: true,
+        message: errorMessage,
+      });
+      setMessage(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const questionProgress = useMemo(() => {
-    const completeQuestions = exam.questions.filter(
-      (question) => question.question_no && question.question_text && question.marks !== "" && question.topic,
-    ).length;
+    const completeQuestions = exam.questions.filter((question) => question.question_no && question.question_text && question.marks !== "").length;
 
     return {
       total: exam.questions.length,
@@ -178,41 +369,20 @@ function UploadPage() {
         return;
       }
 
-      const questions = exam.questions
-        .map((question) => ({
-          question_no: String(question.question_no).trim(),
-          question_text: String(question.question_text).trim(),
-          marks: Number(question.marks),
-          topic: String(question.topic).trim(),
-        }))
-        .filter((question) => question.question_no && question.question_text && question.topic && Number.isFinite(question.marks));
-
-      if (questions.length === 0) {
-        setMessage("Add at least one complete question before submitting.");
-        return;
-      }
-
       setLoading(true);
       setMessage("Submitting exam and generating embeddings...");
       setUploadResponse(null);
 
       try {
-        const response = await apiEndpoints.createAdminExam({
-          exam_name: exam.exam_name.trim(),
-          exam_year: Number(exam.exam_year),
-          subject_name: exam.subject_name.trim(),
-          subject_code: exam.subject_code.trim(),
-          time: exam.time.trim(),
-          total_marks: Number(exam.total_marks),
-          questions,
-        });
+        const payload = normalizeSingleExamPayload(exam);
+        const response = await apiEndpoints.importAdminExams(payload);
 
         const result = response.data || {};
         setUploadResponse({
           mode: "single",
           ...result,
         });
-        setMessage("Exam saved successfully. Use the publish section below when the subject is ready for students.");
+        setMessage("Draft exam saved successfully. Use the publish section below when the subject is ready for students.");
         setExam({
           exam_name: "Final Examination",
           exam_year: new Date().getFullYear(),
@@ -226,12 +396,13 @@ function UploadPage() {
       } catch (error) {
         console.error(error);
         const errorData = error.response?.data || {};
+        const errorMessage = getErrorMessage(errorData, "Submission failed. Check the backend and payload format.");
         setUploadResponse({
           mode: "single",
           error: true,
-          message: errorData.detail || "Submission failed. Check the backend and payload format.",
+          message: errorMessage,
         });
-        setMessage(errorData.detail || "Submission failed. Check the backend and payload format.");
+        setMessage(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -242,14 +413,16 @@ function UploadPage() {
       setUploadResponse(null);
 
       try {
-        const response = await apiEndpoints.createAdminExam(JSON.parse(jsonImport));
+        const payload = normalizeBatchPayload(JSON.parse(jsonImport));
+        const response = await apiEndpoints.importAdminExams(payload);
         const result = response.data || {};
         setUploadResponse({
           mode: "batch",
           ...result,
         });
-        setMessage(result.message || "Batch upload completed.");
+        setMessage(formatValue(result.message, "Batch draft upload completed."));
         setJsonImport("");
+        setJsonFile(null);
         setExam({
           exam_name: "Final Examination",
           exam_year: new Date().getFullYear(),
@@ -262,12 +435,13 @@ function UploadPage() {
       } catch (error) {
         console.error(error);
         const errorData = error.response?.data || {};
+        const errorMessage = getErrorMessage(errorData, "Batch submission failed. Check JSON format and backend response.");
         setUploadResponse({
           mode: "batch",
           error: true,
-          message: errorData.detail || "Batch submission failed.",
+          message: errorMessage,
         });
-        setMessage(errorData.detail || "Batch submission failed. Check JSON format and backend response.");
+        setMessage(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -275,21 +449,23 @@ function UploadPage() {
   }
 
   async function handlePublishSubject() {
-    if (!publishSubjectCode.trim()) {
+    const subjectCode = publishSubjectCode.trim();
+
+    if (!subjectCode) {
       setPublishMessage("Enter a subject code to publish.");
       return;
     }
 
     setPublishing(true);
-    setPublishMessage("Publishing subject data...");
+    setPublishMessage(`Publishing subject data for ${subjectCode}...`);
 
     try {
-      const response = await apiEndpoints.publishSubject(publishSubjectCode.trim());
+      const response = await apiEndpoints.publishSubject(subjectCode);
       const data = response.data || {};
-      setPublishMessage(data.message || `Subject ${publishSubjectCode.trim()} published successfully.`);
+      setPublishMessage(formatValue(data.message, `Subject ${subjectCode} published successfully.`));
     } catch (error) {
       console.error(error);
-      setPublishMessage(error.response?.data?.detail || "Publish failed. Check the subject code and backend response.");
+      setPublishMessage(getErrorMessage(error.response?.data || {}, "Publish failed. Check the subject code and backend response."));
     } finally {
       setPublishing(false);
     }
@@ -343,39 +519,39 @@ function UploadPage() {
             {uploadResponse.error ? (
               <div className="rounded-[1.25rem] border border-rose-200 bg-rose-50 p-4">
                 <h3 className="text-lg font-semibold text-rose-900">Upload failed</h3>
-                <p className="mt-2 text-sm text-rose-800">{uploadResponse.message}</p>
+                <p className="mt-2 text-sm text-rose-800">{formatValue(uploadResponse.message)}</p>
               </div>
             ) : uploadResponse.mode === "single" ? (
               <div className="space-y-4">
                 <div className="rounded-[1.25rem] border border-green-200 bg-green-50 p-4">
                   <h3 className="text-lg font-semibold text-green-900">Exam saved successfully</h3>
-                  <p className="mt-1 text-sm text-green-800">{uploadResponse.message}</p>
+                  <p className="mt-1 text-sm text-green-800">{formatValue(uploadResponse.message)}</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Exam ID</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.exam_id}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.exam_id)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Questions stored</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.question_count}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.question_count)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Embeddings created</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.embedded_count}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.embedded_count)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</p>
-                    <p className="mt-2 text-lg font-semibold text-slate-900">{uploadResponse.status}</p>
+                    <p className="mt-2 text-lg font-semibold text-slate-900">{formatValue(uploadResponse.status)}</p>
                   </div>
                 </div>
-                {uploadResponse.auto_filled_fields && uploadResponse.auto_filled_fields.length > 0 && (
+                {Array.isArray(uploadResponse.auto_filled_fields) && uploadResponse.auto_filled_fields.length > 0 && (
                   <div className="rounded-[1.25rem] border border-blue-100 bg-blue-50 p-4">
                     <p className="text-sm font-semibold text-blue-900">Backend auto-filled fields:</p>
                     <ul className="mt-2 flex flex-wrap gap-2">
                       {uploadResponse.auto_filled_fields.map((field) => (
-                        <li key={field} className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
-                          {field}
+                        <li key={formatValue(field)} className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+                          {formatValue(field)}
                         </li>
                       ))}
                     </ul>
@@ -386,34 +562,34 @@ function UploadPage() {
               <div className="space-y-4">
                 <div className="rounded-[1.25rem] border border-green-200 bg-green-50 p-4">
                   <h3 className="text-lg font-semibold text-green-900">Batch upload completed</h3>
-                  <p className="mt-1 text-sm text-green-800">{uploadResponse.message}</p>
+                  <p className="mt-1 text-sm text-green-800">{formatValue(uploadResponse.message)}</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Received</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.received}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.received)}</p>
                   </div>
                   <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-green-700">Saved</p>
-                    <p className="mt-2 text-2xl font-semibold text-green-900">{uploadResponse.saved}</p>
+                    <p className="mt-2 text-2xl font-semibold text-green-900">{formatValue(uploadResponse.saved)}</p>
                   </div>
                   <div className={`rounded-2xl border p-4 ${uploadResponse.failed > 0 ? "border-rose-200 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
                     <p className={`text-xs uppercase tracking-[0.24em] ${uploadResponse.failed > 0 ? "text-rose-700" : "text-slate-500"}`}>Failed</p>
-                    <p className={`mt-2 text-2xl font-semibold ${uploadResponse.failed > 0 ? "text-rose-900" : "text-slate-900"}`}>{uploadResponse.failed}</p>
+                    <p className={`mt-2 text-2xl font-semibold ${uploadResponse.failed > 0 ? "text-rose-900" : "text-slate-900"}`}>{formatValue(uploadResponse.failed)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Total questions</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.total_question_count}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.total_question_count)}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Embeddings</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-900">{uploadResponse.total_embedded_count}</p>
+                    <p className="mt-2 text-2xl font-semibold text-slate-900">{formatValue(uploadResponse.total_embedded_count)}</p>
                   </div>
                 </div>
 
-                {uploadResponse.saved_items && uploadResponse.saved_items.length > 0 && (
+                {Array.isArray(uploadResponse.saved_items) && uploadResponse.saved_items.length > 0 && (
                   <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-5">
-                    <h4 className="text-lg font-semibold text-green-900">Successfully uploaded ({uploadResponse.saved})</h4>
+                    <h4 className="text-lg font-semibold text-green-900">Successfully uploaded ({formatValue(uploadResponse.saved)})</h4>
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full text-sm text-left">
                         <thead className="border-b border-green-200">
@@ -428,22 +604,22 @@ function UploadPage() {
                         </thead>
                         <tbody className="divide-y divide-green-100">
                           {uploadResponse.saved_items.map((item) => (
-                            <tr key={item.index} className="hover:bg-green-100/50">
-                              <td className="py-3 px-3">{item.index}</td>
-                              <td className="py-3 px-3 font-mono text-xs">{item.exam_id}</td>
-                              <td className="py-3 px-3 font-medium">{item.subject_code}</td>
-                              <td className="py-3 px-3">{item.question_count}</td>
+                            <tr key={formatValue(item.index)} className="hover:bg-green-100/50">
+                              <td className="py-3 px-3">{formatValue(item.index)}</td>
+                              <td className="py-3 px-3 font-mono text-xs">{formatValue(item.exam_id)}</td>
+                              <td className="py-3 px-3 font-medium">{formatValue(item.subject_code)}</td>
+                              <td className="py-3 px-3">{formatValue(item.question_count)}</td>
                               <td className="py-3 px-3">
                                 <span className="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                                  {item.status}
+                                  {formatValue(item.status)}
                                 </span>
                               </td>
                               <td className="py-3 px-3">
-                                {item.auto_filled_fields && item.auto_filled_fields.length > 0 ? (
+                                {Array.isArray(item.auto_filled_fields) && item.auto_filled_fields.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {item.auto_filled_fields.map((field) => (
-                                      <span key={field} className="inline-block rounded bg-green-200/70 px-2 py-0.5 text-xs text-green-800">
-                                        {field}
+                                      <span key={formatValue(field)} className="inline-block rounded bg-green-200/70 px-2 py-0.5 text-xs text-green-800">
+                                        {formatValue(field)}
                                       </span>
                                     ))}
                                   </div>
@@ -459,21 +635,21 @@ function UploadPage() {
                   </div>
                 )}
 
-                {uploadResponse.failed_items && uploadResponse.failed_items.length > 0 && (
+                {Array.isArray(uploadResponse.failed_items) && uploadResponse.failed_items.length > 0 && (
                   <div className="rounded-[1.25rem] border border-rose-100 bg-rose-50 p-5">
-                    <h4 className="text-lg font-semibold text-rose-900">Failed uploads ({uploadResponse.failed})</h4>
+                    <h4 className="text-lg font-semibold text-rose-900">Failed uploads ({formatValue(uploadResponse.failed)})</h4>
                     <div className="mt-4 space-y-3">
                       {uploadResponse.failed_items.map((item) => (
-                        <div key={item.index} className="rounded-2xl border border-rose-200 bg-white p-4">
+                        <div key={formatValue(item.index)} className="rounded-2xl border border-rose-200 bg-white p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
-                              <p className="font-semibold text-rose-900">Exam #{item.index}</p>
-                              <p className="mt-1 text-sm text-rose-800">{item.error}</p>
-                              {item.details && item.details.length > 0 && (
+                              <p className="font-semibold text-rose-900">Exam #{formatValue(item.index)}</p>
+                              <p className="mt-1 text-sm text-rose-800">{formatValue(item.error)}</p>
+                              {Array.isArray(item.details) && item.details.length > 0 && (
                                 <ul className="mt-2 space-y-1">
                                   {item.details.map((detail, idx) => (
                                     <li key={idx} className="text-xs text-rose-700">
-                                      • {detail}
+                                      - {formatValue(detail)}
                                     </li>
                                   ))}
                                 </ul>
@@ -498,7 +674,7 @@ function UploadPage() {
                   {isBatchMode ? "Batch upload" : "Exam details"}
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {isBatchMode ? "Submit multiple exams at once from JSON." : "These fields are sent directly to POST /admin/exams."}
+                  {isBatchMode ? "Submit multiple exams at once from JSON." : "These fields are sent directly to POST /admin/exams/import."}
                 </p>
               </div>
               {!isBatchMode && (
@@ -511,7 +687,7 @@ function UploadPage() {
             {isBatchMode ? (
               <div className="rounded-[1.5rem] border border-cyan-100 bg-cyan-50 p-5">
                 <p className="text-sm font-semibold text-cyan-900">Batch mode active</p>
-                <p className="mt-2 text-sm text-cyan-800">The JSON import textarea contains a batch of exams. Click "Submit" below to upload all exams at once.</p>
+                <p className="mt-2 text-sm text-cyan-800">The JSON import textarea contains a batch of exams. Use the save button below or the import panel button to save all drafts.</p>
               </div>
             ) : (
               <>
@@ -645,7 +821,7 @@ function UploadPage() {
               disabled={loading || (isBatchMode && !jsonImport.trim())}
               className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {loading ? (isBatchMode ? "Submitting batch..." : "Submitting exam...") : isBatchMode ? "Submit batch upload" : "Save exam to admin API"}
+              {loading ? (isBatchMode ? "Saving batch drafts..." : "Saving draft...") : isBatchMode ? "Save batch as drafts" : "Save draft exam"}
             </button>
 
             {message && (
@@ -654,7 +830,7 @@ function UploadPage() {
                   ? "border-rose-200 bg-rose-50 text-rose-700" 
                   : "border-slate-200 bg-slate-50 text-slate-700"
               }`}>
-                {message}
+                {formatValue(message)}
               </div>
             )}
           </form>
@@ -669,7 +845,10 @@ function UploadPage() {
               <input type="file" accept="application/json,.json" onChange={handleJsonFileChange} className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800" />
               <textarea
                 value={jsonImport}
-                onChange={(event) => setJsonImport(event.target.value)}
+                onChange={(event) => {
+                  setJsonFile(null);
+                  setJsonImport(event.target.value);
+                }}
                 placeholder='{"exam_name":"Final Examination","subject_code":"CSE-421",...} or [{"exam_name":"..."},{"exam_name":"..."}]'
                 className="min-h-48 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-cyan-400"
               />
@@ -680,10 +859,18 @@ function UploadPage() {
               >
                 {isBatchMode ? "✓ Batch detected" : "Load JSON"}
               </button>
+              <button
+                type="button"
+                onClick={handleSaveImportedJson}
+                disabled={loading || (!jsonFile && !jsonImport.trim())}
+                className="w-full rounded-full bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {loading ? "Saving imported JSON..." : "Save imported JSON as drafts"}
+              </button>
               {jsonError && <p className="text-sm text-rose-600">{jsonError}</p>}
               {isBatchMode && (
                 <p className="text-xs text-cyan-700 bg-cyan-100 rounded-lg px-3 py-2">
-                  ✓ Array of exams detected. Click "Submit batch upload" on the left to send all exams at once.
+                  ✓ Array of exams detected. Use "Save batch as drafts" or "Save imported JSON as drafts".
                 </p>
               )}
             </div>
@@ -711,7 +898,7 @@ function UploadPage() {
             <div className="space-y-3 rounded-[1.5rem] border border-cyan-100 bg-cyan-50 p-5 text-sm text-cyan-900">
               <div>
                 <h3 className="text-lg font-semibold text-slate-950">Publish subject</h3>
-                <p className="mt-1 text-sm text-slate-600">After review, publish the subject so students can access it.</p>
+                <p className="mt-1 text-sm text-slate-600">Save exams as drafts from the form first, then publish the subject when students should see it.</p>
               </div>
               <input
                 value={publishSubjectCode}
@@ -727,16 +914,16 @@ function UploadPage() {
               >
                 {publishing ? "Publishing..." : "Publish subject"}
               </button>
-              {publishMessage && <p>{publishMessage}</p>}
+              {publishMessage && <p>{formatValue(publishMessage)}</p>}
             </div>
 
             <div className="rounded-[1.5rem] border border-cyan-100 bg-cyan-50 p-5 text-sm text-cyan-900">
               <p className="font-semibold">Example subjects loaded</p>
               <div className="mt-3 space-y-2">
-                {subjects.slice(0, 4).map((subject) => (
-                  <div key={subject.subject_code} className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <span className="font-medium text-slate-900">{subject.subject_code}</span>
-                    <span className="text-right text-slate-500">{subject.subject_name}</span>
+                {subjects.slice(0, 4).map((subject, index) => (
+                  <div key={formatValue(subject.subject_code, index)} className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
+                    <span className="font-medium text-slate-900">{formatValue(subject.subject_code)}</span>
+                    <span className="text-right text-slate-500">{formatValue(subject.subject_name)}</span>
                   </div>
                 ))}
                 {subjects.length === 0 && <p className="text-cyan-800/80">No subjects loaded yet.</p>}

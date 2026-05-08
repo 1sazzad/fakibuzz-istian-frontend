@@ -26,7 +26,8 @@ The frontend service layer in [src/api/api.js](src/api/api.js) targets the curre
 - `GET /subjects/{subject_code}/analysis`
 - `GET /subjects/{subject_code}/prediction`
 - `POST /answers/generate`
-- `POST /admin/exams`
+- `POST /admin/exams/import`
+- `POST /admin/exams/import-file`
 
 During local development, Vite proxies frontend requests from `/api/*` to `http://127.0.0.1:8000/*` (see `vite.config.js`).
 This avoids browser CORS issues for cross-origin admin `POST` routes.
@@ -106,7 +107,7 @@ npm run lint
 
 - The home page now acts as subject discovery, not legacy question browsing.
 - Questions, analysis, and prediction pages load published data only.
-- The admin upload page uses `POST /admin/exams`.
+- The admin upload page uses `POST /admin/exams/import` for structured JSON and `POST /admin/exams/import-file` for JSON files.
 - Navigation has been trimmed to the active routes only.
 
 ## Notes
