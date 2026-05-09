@@ -18,6 +18,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import DonationPage from "./pages/DonationPage";
+import HomePage from "./pages/HomePage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminCreatePage from "./pages/AdminCreatePage";
 import DashboardPage from "./pages/DashboardPage";
@@ -56,7 +57,7 @@ function App() {
 
       <div className={isAuthenticated ? "lg:pl-72" : ""}>
         <Routes>
-          <Route path="/" element={<QuestionsPage />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />

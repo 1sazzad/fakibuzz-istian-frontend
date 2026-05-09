@@ -1,13 +1,16 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { APP_NAME } from "../config/app";
 import Button from "./ui/Button";
 
 const publicNavItems = [
-  { to: "/support", label: "Support" },
-  { to: "/feedback", label: "Feedback" },
+  { to: "/#features", label: "Features" },
+  { to: "/#how-it-works", label: "How it works" },
+  { to: "/#request-subject", label: "Request subject" },
+  { to: "/#feedback", label: "Feedback" },
+  { to: "/#support", label: "Support" },
   { to: "/login", label: "Login" },
-  { to: "/register", label: "Register" },
 ];
 
 const studentNavItems = [
@@ -51,6 +54,8 @@ function Brand() {
 function Navbar() {
   const { isAuthenticated, isAdmin, logout, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isPublicMenuOpen, setIsPublicMenuOpen] = useState(false);
   const navItems = !isAuthenticated ? publicNavItems : isAdmin ? adminNavItems : studentNavItems;
 
   function handleLogout() {
@@ -61,16 +66,94 @@ function Navbar() {
   if (!isAuthenticated) {
     return (
       <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Brand />
-          <div className="flex shrink-0 items-center gap-2">
-            {navItems.map((item) => (
-              <NavLink key={item.to} to={item.to} className={navClass}>
-                {item.label}
-              </NavLink>
-            ))}
+          <button
+            type="button"
+            className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:hidden"
+            aria-label="Toggle navigation menu"
+            aria-expanded={isPublicMenuOpen}
+            onClick={() => setIsPublicMenuOpen((current) => !current)}
+          >
+            <span className="sr-only">Menu</span>
+            <span className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+            </span>
+          </button>
+          <div className="hidden items-center gap-2 lg:flex lg:justify-end">
+            {navItems.map((item) => {
+              if (item.to.includes("#")) {
+                const itemHash = item.to.slice(item.to.indexOf("#"));
+                const isHashActive = location.pathname === "/" && location.hash === itemHash;
+
+                return (
+                  <Link key={item.to} to={item.to} className={navClass({ isActive: isHashActive })}>
+                    {item.label}
+                  </Link>
+                );
+              }
+
+              return (
+                <NavLink key={item.to} to={item.to} className={navClass}>
+                  {item.label}
+                </NavLink>
+              );
+            })}
+            <Link
+              to="/register"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
+            >
+              Get Started
+            </Link>
           </div>
         </div>
+        {isPublicMenuOpen && (
+          <div className="border-t border-slate-100 px-4 pb-4 sm:px-6 lg:hidden">
+            <div className="grid gap-2 pt-3">
+              {navItems.map((item) => {
+                const commonClass = "flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-sm font-medium transition";
+
+                if (item.to.includes("#")) {
+                  const itemHash = item.to.slice(item.to.indexOf("#"));
+                  const isHashActive = location.pathname === "/" && location.hash === itemHash;
+
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={() => setIsPublicMenuOpen(false)}
+                      className={`${commonClass} ${isHashActive ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setIsPublicMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `${commonClass} ${isActive ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+              <Link
+                to="/register"
+                onClick={() => setIsPublicMenuOpen(false)}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
+              >
+                Get Started
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
     );
   }
