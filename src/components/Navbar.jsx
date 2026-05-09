@@ -42,12 +42,17 @@ function navClass({ isActive }) {
   ].join(" ");
 }
 
-function Brand() {
+function Brand({ onClick }) {
   return (
-    <NavLink to="/" className="min-w-0">
+    <Link
+      to="/"
+      onClick={onClick}
+      className="block min-w-0 cursor-pointer rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      aria-label="Go to FakiBuzz homepage"
+    >
       <span className="block truncate text-lg font-semibold tracking-tight text-slate-950">{APP_NAME}</span>
       <span className="block truncate text-xs font-medium text-slate-500">Exam intelligence for learners</span>
-    </NavLink>
+    </Link>
   );
 }
 
@@ -63,11 +68,31 @@ function Navbar() {
     navigate("/", { replace: true });
   }
 
+  function scrollHomeToTop() {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function handleBrandClick(event) {
+    event.preventDefault();
+    setIsPublicMenuOpen(false);
+
+    if (location.pathname === "/" && !location.hash) {
+      scrollHomeToTop();
+      return;
+    }
+
+    navigate("/");
+    window.setTimeout(scrollHomeToTop, 0);
+  }
+
   if (!isAuthenticated) {
     return (
       <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <Brand />
+          <Brand onClick={handleBrandClick} />
           <button
             type="button"
             className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:hidden"
@@ -162,7 +187,7 @@ function Navbar() {
     <>
       <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Brand />
+          <Brand onClick={handleBrandClick} />
           <Button variant="secondary" size="sm" onClick={handleLogout}>
             Logout
           </Button>
@@ -177,7 +202,7 @@ function Navbar() {
       </nav>
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white px-4 py-5 lg:flex lg:flex-col">
-        <Brand />
+        <Brand onClick={handleBrandClick} />
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isAdmin ? "Admin" : "Student"}</p>

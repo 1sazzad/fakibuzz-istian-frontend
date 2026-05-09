@@ -19,6 +19,9 @@ import RegisterPage from "./pages/RegisterPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import DonationPage from "./pages/DonationPage";
 import HomePage from "./pages/HomePage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import ContactPage from "./pages/ContactPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminCreatePage from "./pages/AdminCreatePage";
 import DashboardPage from "./pages/DashboardPage";
@@ -62,6 +65,9 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/support" element={<DonationPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin/create" element={<AdminCreatePage />} />
 

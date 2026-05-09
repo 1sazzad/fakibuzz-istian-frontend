@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 
 import heroImage from "../assets/hero.png";
 import { APP_NAME } from "../config/app";
+import { CONTACT_METHODS } from "../config/contact";
+import Footer from "../components/Footer";
 import { useAuth } from "../context/useAuth";
 import { Button, Card } from "../components/ui";
 
@@ -56,6 +58,27 @@ const steps = [
     bangla: "৩. প্রেডিকশন ও সাজেশন নিন",
   },
 ];
+
+function WhatsAppIcon({ className = "h-5 w-5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M19.05 4.91A9.82 9.82 0 0 0 12.04 2a9.9 9.9 0 0 0-8.6 14.8L2 22l5.33-1.4a9.9 9.9 0 0 0 4.7 1.2h.01a9.93 9.93 0 0 0 9.93-9.9 9.86 9.86 0 0 0-2.92-6.99Zm-7.01 15.2a8.2 8.2 0 0 1-4.18-1.14l-.3-.18-3.16.83.84-3.08-.2-.32a8.18 8.18 0 1 1 7 3.9Zm4.5-6.13c-.25-.12-1.47-.72-1.7-.8-.23-.09-.4-.13-.56.12-.17.25-.65.8-.8.96-.15.17-.3.19-.55.07-.25-.13-1.06-.39-2.02-1.24a7.56 7.56 0 0 1-1.4-1.74c-.14-.25-.01-.38.11-.5.11-.11.25-.3.37-.45.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1s.9 2.43 1.03 2.6c.12.17 1.77 2.7 4.29 3.78.6.26 1.07.41 1.43.53.6.19 1.15.16 1.59.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.16-.48-.29Z" />
+    </svg>
+  );
+}
+
+function MailIcon({ className = "h-5 w-5" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+      <rect width="18" height="14" x="3" y="5" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function ContactIcon({ type, className }) {
+  return type === "WhatsApp" ? <WhatsAppIcon className={className} /> : <MailIcon className={className} />;
+}
 
 function SectionHeading({ eyebrow, title, description, bangla }) {
   return (
@@ -227,6 +250,26 @@ function HomePage() {
             <p className="mt-4 break-words text-base leading-relaxed text-slate-600">
               আমরা এখনো আমাদের প্রশ্ন ডাটাবেজ বড় করছি। যদি আপনার সাবজেক্ট পাওয়া না যায়, তাহলে অন্তত বিগত পাঁচ বছরের প্রশ্নপত্র নিয়ে আমাদের সাথে যোগাযোগ করুন। এতে আমরা আপনার সাবজেক্ট যুক্ত করতে পারব এবং প্রেডিকশনের মান আরও ভালো হবে।
             </p>
+            <div className="mt-8 rounded-2xl border border-cyan-100 bg-cyan-50 p-5">
+              <p className="text-base font-semibold text-slate-950">Need help? Contact us directly.</p>
+              <p className="mt-1 break-words text-base leading-relaxed text-slate-700">সাহায্য প্রয়োজন? সরাসরি যোগাযোগ করুন।</p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                {CONTACT_METHODS.map((method) => (
+                  <Button
+                    key={method.type}
+                    as="a"
+                    href={method.href}
+                    target={method.href.startsWith("http") ? "_blank" : undefined}
+                    rel={method.href.startsWith("http") ? "noreferrer" : undefined}
+                    variant={method.type === "WhatsApp" ? "primary" : "secondary"}
+                    className="w-full sm:w-auto"
+                  >
+                    <ContactIcon type={method.type} className="h-4 w-4" />
+                    {method.actionLabel}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
           <Card className="self-start">
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
@@ -236,7 +279,7 @@ function HomePage() {
               <Button as={Link} to="/feedback" variant="secondary" className="w-full">
                 Submit Question Papers
               </Button>
-              <Button as={Link} to="/feedback" variant="secondary" className="w-full">
+              <Button as="a" href="#contact" variant="secondary" className="w-full">
                 Contact Us
               </Button>
             </div>
@@ -244,6 +287,46 @@ function HomePage() {
               Include subject code, subject name, department, exam years, and clear scans or PDFs when you contact the team.
             </p>
           </Card>
+        </div>
+      </section>
+
+      <section id="contact" className="px-4 py-12 sm:px-6 md:py-20 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <SectionHeading
+            eyebrow="Reach Out"
+            title="Contact Us"
+            bangla="যেকোনো প্রয়োজন বা সাবজেক্ট সংক্রান্ত সহায়তার জন্য যোগাযোগ করুন"
+          />
+          <div className="mt-8 grid gap-4 md:grid-cols-2 lg:mt-10">
+            {CONTACT_METHODS.map((method) => {
+              const isWhatsApp = method.type === "WhatsApp";
+              const iconClasses = isWhatsApp ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700";
+              const hoverClasses = isWhatsApp ? "hover:border-emerald-200 hover:bg-emerald-50/50" : "hover:border-indigo-200 hover:bg-indigo-50/50";
+
+              return (
+                <a
+                  key={method.type}
+                  href={method.href}
+                  target={method.href.startsWith("http") ? "_blank" : undefined}
+                  rel={method.href.startsWith("http") ? "noreferrer" : undefined}
+                  className={`group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 transition ${hoverClasses} sm:p-6`}
+                >
+                  <div className="flex min-w-0 items-start gap-4">
+                    <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClasses}`}>
+                      <ContactIcon type={method.type} className="h-6 w-6" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-500">{method.type}</p>
+                      <p className="mt-1 break-words text-xl font-semibold text-slate-950">{method.label}</p>
+                      <p className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-indigo-700 group-hover:text-indigo-800">
+                        {method.actionLabel}
+                      </p>
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -317,20 +400,7 @@ function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 bg-slate-950 px-4 py-8 text-white sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="min-w-0">
-            <p className="text-lg font-semibold">{APP_NAME}</p>
-            <p className="mt-1 text-sm text-slate-300">Exam intelligence for learners.</p>
-          </div>
-          <div className="grid gap-2 text-sm text-slate-300 sm:grid-cols-2 md:flex md:flex-wrap md:justify-end md:gap-4">
-            <a href="#features" className="inline-flex min-h-10 items-center hover:text-white">Features</a>
-            <a href="#request-subject" className="inline-flex min-h-10 items-center hover:text-white">Request Subject</a>
-            <Link to="/feedback" className="inline-flex min-h-10 items-center hover:text-white">Feedback</Link>
-            <Link to="/support" className="inline-flex min-h-10 items-center hover:text-white">Support</Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
