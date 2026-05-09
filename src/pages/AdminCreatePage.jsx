@@ -72,10 +72,10 @@ function AdminCreatePage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8 sm:py-12">
+    <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Admin Setup</p>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-950">Create admin account</h1>
+        <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Create admin account</h1>
         <p className="mt-2 text-sm text-slate-500">Use this for the first admin, or login as admin and create more from the dashboard.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -95,7 +95,7 @@ function AdminCreatePage() {
             <ErrorMessage tone="success">{message}</ErrorMessage>
           </div>
 
-          <Button type="submit" disabled={loading} className="sm:col-span-2">
+          <Button type="submit" disabled={loading} className="w-full sm:col-span-2">
             {loading ? "Creating..." : "Create admin"}
           </Button>
         </form>

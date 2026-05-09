@@ -56,11 +56,11 @@ function LoginPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8 sm:py-12">
+    <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-md">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Student Login</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-950">Access your dashboard</h1>
+          <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Access your dashboard</h1>
           <p className="mt-2 text-sm text-slate-500">Sign in with your student account.</p>
         </div>
 

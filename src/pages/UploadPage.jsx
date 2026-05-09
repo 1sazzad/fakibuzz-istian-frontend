@@ -554,21 +554,21 @@ function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(180deg,_#020617_0%,_#0f172a_45%,_#e2e8f0_45%,_#f8fafc_100%)] px-4 py-8 text-slate-900 sm:px-6 lg:px-8">
+    <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(180deg,_#020617_0%,_#0f172a_45%,_#e2e8f0_45%,_#f8fafc_100%)] px-4 py-6 text-slate-900 sm:px-6 md:py-10 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="grid gap-6 rounded-[2rem] border border-white/10 bg-slate-950/90 p-6 text-white shadow-2xl shadow-slate-950/30 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
-          <div className="space-y-4">
-            <span className="inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.3em] text-cyan-200">
+        <section className="grid min-w-0 gap-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-950/90 p-5 text-white shadow-2xl shadow-slate-950/30 sm:p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
+          <div className="min-w-0 space-y-4">
+            <span className="inline-flex max-w-full rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-cyan-200">
               Admin JSON ingest
             </span>
-            <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            <h1 className="break-words text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
               Import a JSON exam, index it once, publish it when ready.
             </h1>
             <p className="max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
               Paste or upload the admin exam JSON, review the generated form, submit it to the backend, then publish the subject for student access.
             </p>
 
-            <div className="flex flex-wrap gap-3 text-sm text-slate-300">
+            <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3 lg:flex lg:flex-wrap">
               <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400">API status</p>
                 <p className="mt-1 font-medium text-white">
@@ -586,7 +586,7 @@ function UploadPage() {
             </div>
           </div>
 
-          <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+          <div className="min-w-0 rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
             <h2 className="text-lg font-semibold text-white">Workflow</h2>
             <ol className="mt-4 space-y-3 text-sm text-slate-300">
               <li className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">1. Import a JSON payload or edit the form manually.</li>
@@ -597,7 +597,7 @@ function UploadPage() {
         </section>
 
         {uploadResponse && (
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
             {uploadResponse.error ? (
               <div className="rounded-[1.25rem] border border-rose-200 bg-rose-50 p-4">
                 <h3 className="text-lg font-semibold text-rose-900">Upload failed</h3>
@@ -685,7 +685,7 @@ function UploadPage() {
                   <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-5">
                     <h4 className="text-lg font-semibold text-green-900">Successfully uploaded ({formatValue(uploadResponse.saved)})</h4>
                     <div className="mt-4 overflow-x-auto">
-                      <table className="w-full text-sm text-left">
+                      <table className="min-w-[760px] w-full text-left text-sm">
                         <thead className="border-b border-green-200">
                           <tr>
                             <th className="py-2 px-3 font-semibold text-green-800">Index</th>
@@ -700,7 +700,7 @@ function UploadPage() {
                           {uploadResponse.saved_items.map((item) => (
                             <tr key={formatValue(item.index)} className="hover:bg-green-100/50">
                               <td className="py-3 px-3">{formatValue(item.index)}</td>
-                              <td className="py-3 px-3 font-mono text-xs">{formatValue(item.exam_id)}</td>
+                              <td className="py-3 px-3 break-words font-mono text-xs">{formatValue(item.exam_id)}</td>
                               <td className="py-3 px-3 font-medium">{formatValue(item.subject_code)}</td>
                               <td className="py-3 px-3">{formatValue(item.question_count)}</td>
                               <td className="py-3 px-3">
@@ -738,7 +738,7 @@ function UploadPage() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1">
                               <p className="font-semibold text-rose-900">Exam #{formatValue(item.index)}</p>
-                              <p className="mt-1 text-sm text-rose-800">{formatValue(item.error)}</p>
+                              <p className="mt-1 break-words text-sm text-rose-800">{formatValue(item.error)}</p>
                               {Array.isArray(item.details) && item.details.length > 0 && (
                                 <ul className="mt-2 space-y-1">
                                   {item.details.map((detail, idx) => (
@@ -761,10 +761,10 @@ function UploadPage() {
         )}
 
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <form onSubmit={handleSubmit} className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+          <form onSubmit={handleSubmit} className="min-w-0 space-y-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold text-slate-950">
+                <h2 className="break-words text-2xl font-semibold text-slate-950">
                   {isBatchMode ? "Batch upload" : "Exam details"}
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -856,7 +856,7 @@ function UploadPage() {
                     <button
                       type="button"
                       onClick={addQuestion}
-                      className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                      className="w-full rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 sm:w-auto"
                     >
                       Add question
                     </button>
@@ -865,7 +865,7 @@ function UploadPage() {
                   <div className="mt-4 space-y-4">
                     {exam.questions.map((question, index) => (
                       <div key={index} className="rounded-[1.25rem] border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                           <h4 className="font-semibold text-slate-900">Question {index + 1}</h4>
                           <button
                             type="button"
@@ -956,14 +956,14 @@ function UploadPage() {
             )}
           </form>
 
-          <aside className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+          <aside className="min-w-0 space-y-6 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
             <div>
               <h2 className="text-2xl font-semibold text-slate-950">Import JSON</h2>
               <p className="mt-1 text-sm text-slate-500">Paste the admin exam JSON (single or batch) or upload a .json file.</p>
             </div>
 
             <div className="space-y-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
-              <input type="file" accept="application/json,.json" onChange={handleJsonFileChange} className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800" />
+              <input type="file" accept="application/json,.json" onChange={handleJsonFileChange} className="block w-full text-sm text-slate-700 file:mb-2 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800 sm:file:mb-0" />
               <textarea
                 value={jsonImport}
                 onChange={(event) => {
@@ -971,7 +971,7 @@ function UploadPage() {
                   setJsonImport(event.target.value);
                 }}
                 placeholder='{"exam_name":"Final Examination","subject_code":"CSE-421","questions":[{"question_no":"1(a)","question_text":"Prove the parallelogram law.","marks":5,"topic":"Inner Product Spaces","formula_latex":"\\\\|u+v\\\\|^2+\\\\|u-v\\\\|^2=2(\\\\|u\\\\|^2+\\\\|v\\\\|^2)","diagram_required":true,"diagram_reference":"Vector diagram","diagram_description":"Show u, v, u+v, and u-v as directed vectors."}]}'
-                className="min-h-48 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-cyan-400"
+                className="min-h-48 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-6 outline-none focus:border-cyan-400"
               />
               <button
                 type="button"
@@ -1031,7 +1031,7 @@ function UploadPage() {
                 type="button"
                 onClick={handlePublishSubject}
                 disabled={publishing}
-                className="rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="w-full rounded-full bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto"
               >
                 {publishing ? "Publishing..." : "Publish subject"}
               </button>
@@ -1058,9 +1058,9 @@ function UploadPage() {
               <p className="font-semibold">Example subjects loaded</p>
               <div className="mt-3 space-y-2">
                 {subjects.slice(0, 4).map((subject, index) => (
-                  <div key={formatValue(subject.subject_code, index)} className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
-                    <span className="font-medium text-slate-900">{formatValue(subject.subject_code)}</span>
-                    <span className="text-right text-slate-500">{formatValue(subject.subject_name)}</span>
+                  <div key={formatValue(subject.subject_code, index)} className="flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <span className="break-words font-medium text-slate-900">{formatValue(subject.subject_code)}</span>
+                    <span className="break-words text-slate-500 sm:text-right">{formatValue(subject.subject_name)}</span>
                   </div>
                 ))}
                 {subjects.length === 0 && <p className="text-cyan-800/80">No subjects loaded yet.</p>}

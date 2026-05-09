@@ -33,19 +33,21 @@ function PrivacyPolicyPage() {
   return (
     <>
       <ResponsiveContainer>
-        <PageHeader
-          eyebrow="Legal"
-          title="Privacy Policy"
-          description="A basic overview of how FakiBuzz handles student information and platform data."
-        />
+        <div className="mx-auto max-w-4xl space-y-6">
+          <PageHeader
+            eyebrow="Legal"
+            title="Privacy Policy"
+            description="A basic overview of how FakiBuzz handles student information and platform data."
+          />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {sections.map((section) => (
-            <Card key={section.title} className="h-full">
-              <h2 className="text-xl font-semibold text-slate-950">{section.title}</h2>
-              <p className="mt-3 break-words text-sm leading-relaxed text-slate-600">{section.description}</p>
-            </Card>
-          ))}
+          <div className="grid gap-4">
+            {sections.map((section) => (
+              <Card key={section.title} className="h-full">
+                <h2 className="break-words text-xl font-semibold text-slate-950">{section.title}</h2>
+                <p className="mt-3 break-words text-base leading-relaxed text-slate-600">{section.description}</p>
+              </Card>
+            ))}
+          </div>
         </div>
       </ResponsiveContainer>
       <Footer />

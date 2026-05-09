@@ -61,9 +61,11 @@ function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isPublicMenuOpen, setIsPublicMenuOpen] = useState(false);
+  const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
   const navItems = !isAuthenticated ? publicNavItems : isAdmin ? adminNavItems : studentNavItems;
 
   function handleLogout() {
+    setIsAppMenuOpen(false);
     logout();
     navigate("/", { replace: true });
   }
@@ -78,6 +80,7 @@ function Navbar() {
   function handleBrandClick(event) {
     event.preventDefault();
     setIsPublicMenuOpen(false);
+    setIsAppMenuOpen(false);
 
     if (location.pathname === "/" && !location.hash) {
       scrollHomeToTop();
@@ -188,17 +191,46 @@ function Navbar() {
       <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Brand onClick={handleBrandClick} />
-          <Button variant="secondary" size="sm" onClick={handleLogout}>
-            Logout
-          </Button>
+          <button
+            type="button"
+            className="inline-flex min-h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+            aria-label="Toggle navigation menu"
+            aria-expanded={isAppMenuOpen}
+            onClick={() => setIsAppMenuOpen((current) => !current)}
+          >
+            <span className="sr-only">Menu</span>
+            <span className="flex flex-col gap-1.5">
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+              <span className="block h-0.5 w-5 rounded-full bg-current" />
+            </span>
+          </button>
         </div>
-        <div className="flex gap-2 overflow-x-auto px-4 pb-3">
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => `${navClass({ isActive })} shrink-0`}>
-              {item.label}
-            </NavLink>
-          ))}
-        </div>
+        {isAppMenuOpen && (
+          <div className="border-t border-slate-100 px-4 pb-4">
+            <div className="grid gap-2 pt-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isAdmin ? "Admin" : "Student"}</p>
+                <p className="mt-1 break-words text-sm font-semibold text-slate-950">
+                  {user?.full_name || user?.email || (isAdmin ? "Admin" : "Student")}
+                </p>
+              </div>
+              {navItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setIsAppMenuOpen(false)}
+                  className={({ isActive }) => navClass({ isActive })}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+              <Button variant="secondary" className="w-full" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
+          </div>
+        )}
       </nav>
 
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white px-4 py-5 lg:flex lg:flex-col">

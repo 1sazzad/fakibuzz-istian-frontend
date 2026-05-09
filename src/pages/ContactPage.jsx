@@ -12,7 +12,7 @@ function ContactPage() {
           description="Reach out if you cannot find your subject, want to submit previous question papers, or need platform support."
         />
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2">
           {CONTACT_METHODS.map((method) => (
             <Card key={method.type} className="h-full">
               <p className="text-sm font-medium text-slate-500">{method.type}</p>

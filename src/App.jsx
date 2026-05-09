@@ -58,7 +58,7 @@ function App() {
         </div>
       )}
 
-      <div className={isAuthenticated ? "lg:pl-72" : ""}>
+      <div className={`min-w-0 overflow-x-hidden ${isAuthenticated ? "lg:pl-72" : ""}`}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />

@@ -175,12 +175,12 @@ function ManageSubjectsPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-88px)] bg-slate-50 px-4 py-10">
+    <main className="min-h-[calc(100vh-88px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 md:py-10 lg:px-8">
       <section className="mx-auto max-w-6xl space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/60 sm:p-6">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-700">Admin</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-950">Manage Subjects</h1>
-          <p className="mt-2 text-sm text-slate-500">Publish, inspect, or delete subject data and analysis topics.</p>
+          <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Manage Subjects</h1>
+          <p className="mt-2 break-words text-sm leading-relaxed text-slate-500">Publish, inspect, or delete subject data and analysis topics.</p>
 
             <div className="mt-6 flex flex-wrap gap-3">
             {["draft", "published", ""].map((item) => (
@@ -224,15 +224,15 @@ function ManageSubjectsPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-xl font-semibold text-slate-950">Subjects</h2>
             <div className="mt-4 space-y-3">
               {subjects.map((subject) => (
                 <article key={subject.subject_code} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <h3 className="font-semibold text-slate-950">{subject.subject_code}</h3>
-                      <p className="text-sm text-slate-600">{subject.subject_name || "Unnamed subject"}</p>
+                      <p className="break-words text-sm text-slate-600">{subject.subject_name || "Unnamed subject"}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {subject.status || status || "unknown"} · {subject.total_questions} questions · {subject.pending_review_count} pending reviews
                       </p>
@@ -260,7 +260,7 @@ function ManageSubjectsPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">Topics</h2>
@@ -278,8 +278,8 @@ function ManageSubjectsPage() {
                 return (
                   <article key={`${topicName}-${index}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold text-slate-950">{topicName}</h3>
+                      <div className="min-w-0">
+                        <h3 className="break-words font-semibold text-slate-950">{topicName}</h3>
                         <p className="text-sm text-slate-600">
                           {topic.frequency ?? topic.count ?? 0} questions · {topic.total_marks ?? topic.marks ?? 0} marks
                         </p>

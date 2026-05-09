@@ -159,9 +159,9 @@ function FeedbackPage() {
           />
         </label>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm text-slate-500">{form.message.length}/{MESSAGE_MAX_LENGTH}</span>
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
             {submitting ? "Submitting..." : "Submit feedback"}
           </Button>
         </div>

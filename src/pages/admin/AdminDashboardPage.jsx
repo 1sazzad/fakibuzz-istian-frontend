@@ -361,7 +361,7 @@ function AdminDashboardPage() {
             <ErrorMessage tone="success">{adminMessage}</ErrorMessage>
           </div>
 
-          <Button type="submit" disabled={creatingAdmin} className="mt-5">
+          <Button type="submit" disabled={creatingAdmin} className="mt-5 w-full sm:w-auto">
             {creatingAdmin ? "Creating..." : "Create admin account"}
           </Button>
         </Card>

@@ -103,11 +103,11 @@ function RegisterPage() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8 sm:py-12">
+    <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-2xl">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Learner Register</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-950">Create your account</h1>
+          <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Create your account</h1>
           <p className="mt-2 text-sm text-slate-500">Use your student details to start using FakiBuzz.</p>
         </div>
 
@@ -226,7 +226,7 @@ function RegisterPage() {
             <ErrorMessage tone="success">{success}</ErrorMessage>
           </div>
 
-          <Button type="submit" disabled={loading} className="sm:col-span-2">
+          <Button type="submit" disabled={loading} className="w-full sm:col-span-2">
             {loading ? "Creating account..." : "Register"}
           </Button>
         </form>

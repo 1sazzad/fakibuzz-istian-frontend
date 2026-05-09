@@ -124,3 +124,26 @@ Configure the backend base URL with `VITE_API_BASE_URL`. Avoid hardcoding backen
 - Keep API endpoint names consistent with the backend.
 - Prefer small, focused components over duplicated JSX.
 - Test important learner and admin flows before submitting changes.
+
+## Responsiveness Checklist
+
+Validate these routes at 320px, 375px, 768px, 1024px, and 1440px before release. Pages should have no body-level horizontal scrolling, readable wrapped Bangla/English text, mobile-friendly forms, and stacked cards/buttons where space is limited.
+
+- Homepage: `/`
+- Login: `/login`
+- Register: `/register`
+- Dashboard: `/dashboard`
+- Subjects: `/subjects`
+- Questions: `/subjects`
+- Prediction: `/predict`
+- Suggestion: `/suggestions`
+- Analysis: `/analysis`
+- Admin dashboard: `/admin/dashboard`
+- Admin upload: `/admin/upload`
+- Admin questions: `/admin/questions`
+- Admin subjects: `/admin/subjects`
+- Export flows: suggestion JSON/PDF actions on `/suggestions`
+- Feedback: `/feedback`
+- Contact: `/contact`
+- Privacy Policy: `/privacy-policy`
+- Terms of Service: `/terms-of-service`
