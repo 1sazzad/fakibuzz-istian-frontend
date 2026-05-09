@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createAdminUser } from "../api/authApi";
 import { Button, Card, ErrorMessage } from "../components/ui";
+import { buildInstitutionMetadata } from "../utils/institution";
 
 const PHONE_PATTERN = /^[0-9+().\s-]+$/;
 
@@ -16,8 +17,11 @@ function AdminCreatePage() {
     email: "",
     phone_number: "",
     password: "",
-    university_name: "",
+    institution_id: "",
+    institution_name: "",
     department: "",
+    program: "",
+    batch_session: "",
     setup_token: "",
   });
   const [loading, setLoading] = useState(false);
@@ -54,8 +58,7 @@ function AdminCreatePage() {
           phone_number: form.phone_number.trim(),
           password: form.password,
           role: "admin",
-          university_name: form.university_name.trim() || undefined,
-          department: form.department.trim() || undefined,
+          ...buildInstitutionMetadata(form),
         },
         form.setup_token,
       );
@@ -80,8 +83,11 @@ function AdminCreatePage() {
           <input aria-label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} required placeholder="Email" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Phone number" value={form.phone_number} onChange={(event) => updateField("phone_number", event.target.value)} required placeholder="Phone number" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Password" type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)} required minLength={8} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <input aria-label="University name" value={form.university_name} onChange={(event) => updateField("university_name", event.target.value)} placeholder="University name (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Institution ID" value={form.institution_id} onChange={(event) => updateField("institution_id", event.target.value)} placeholder="Institution ID (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Institution name" value={form.institution_name} onChange={(event) => updateField("institution_name", event.target.value)} placeholder="Institution name (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Department" value={form.department} onChange={(event) => updateField("department", event.target.value)} placeholder="Department (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Program" value={form.program} onChange={(event) => updateField("program", event.target.value)} placeholder="Program (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Batch/session" value={form.batch_session} onChange={(event) => updateField("batch_session", event.target.value)} placeholder="Batch/session (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Setup token" type="password" value={form.setup_token} onChange={(event) => updateField("setup_token", event.target.value)} placeholder="Setup token (first admin only)" autoComplete="off" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 sm:col-span-2" />
 
           <div className="sm:col-span-2">

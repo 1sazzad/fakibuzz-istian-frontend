@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 import Navbar from "./components/Navbar";
+import AnalyticsTracker from "./components/AnalyticsTracker";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
 import { useAuth } from "./context/useAuth";
@@ -15,6 +16,8 @@ import SuggestionsPage from "./pages/SuggestionsPage";
 import GenerateAnswerPage from "./pages/GenerateAnswerPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import FeedbackPage from "./pages/FeedbackPage";
+import DonationPage from "./pages/DonationPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminCreatePage from "./pages/AdminCreatePage";
 import DashboardPage from "./pages/DashboardPage";
@@ -40,6 +43,7 @@ function App() {
   return (
     <>
       <Navbar />
+      <AnalyticsTracker />
 
       {permissionMessage && (
         <div className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm font-medium text-rose-700">
@@ -55,6 +59,8 @@ function App() {
           <Route path="/" element={<QuestionsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/support" element={<DonationPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route path="/admin/create" element={<AdminCreatePage />} />
 

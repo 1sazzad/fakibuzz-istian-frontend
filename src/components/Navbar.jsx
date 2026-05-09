@@ -1,8 +1,11 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { APP_NAME } from "../config/app";
 import Button from "./ui/Button";
 
 const publicNavItems = [
+  { to: "/support", label: "Support" },
+  { to: "/feedback", label: "Feedback" },
   { to: "/login", label: "Login" },
   { to: "/register", label: "Register" },
 ];
@@ -15,6 +18,8 @@ const studentNavItems = [
   { to: "/predict", label: "Predictions" },
   { to: "/suggestions", label: "Suggestions" },
   { to: "/generate-answer", label: "Answers" },
+  { to: "/support", label: "Support" },
+  { to: "/feedback", label: "Feedback" },
   { to: "/profile", label: "Profile" },
 ];
 
@@ -23,6 +28,8 @@ const adminNavItems = [
   { to: "/admin/upload", label: "Upload" },
   { to: "/admin/questions", label: "Questions" },
   { to: "/admin/subjects", label: "Subjects" },
+  { to: "/support", label: "Support" },
+  { to: "/feedback", label: "Feedback" },
 ];
 
 function navClass({ isActive }) {
@@ -35,8 +42,8 @@ function navClass({ isActive }) {
 function Brand() {
   return (
     <NavLink to="/" className="min-w-0">
-      <span className="block truncate text-lg font-semibold tracking-tight text-slate-950">FakiBuzz! ISTian</span>
-      <span className="block truncate text-xs font-medium text-slate-500">Exam intelligence for students</span>
+      <span className="block truncate text-lg font-semibold tracking-tight text-slate-950">{APP_NAME}</span>
+      <span className="block truncate text-xs font-medium text-slate-500">Exam intelligence for learners</span>
     </NavLink>
   );
 }

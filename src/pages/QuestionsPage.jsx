@@ -232,6 +232,7 @@ function QuestionsPage() {
                 </p>
               </div>
             </div>
+            <QuestionExtras item={searchResult} />
           </Card>
         )}
 
@@ -269,6 +270,7 @@ function QuestionsPage() {
                   <p className="mt-1 text-sm font-semibold text-slate-950">{topicEntries.length}</p>
                 </div>
               </div>
+              <QuestionExtras item={overview} />
 
               <div className="mt-5 flex flex-wrap gap-2">
                 {topicEntries.length > 0 ? (

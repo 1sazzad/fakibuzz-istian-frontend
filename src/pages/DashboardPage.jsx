@@ -48,8 +48,8 @@ function DashboardPage() {
   return (
     <ResponsiveContainer>
       <PageHeader
-        eyebrow="Student Dashboard"
-        title={`Welcome, ${user?.full_name || "Student"}`}
+        eyebrow="Learner Dashboard"
+        title={`Welcome, ${user?.full_name || "Learner"}`}
         description="Search questions, review predictions, generate answers, and export focused study material from published exam data."
         stats={
           <>

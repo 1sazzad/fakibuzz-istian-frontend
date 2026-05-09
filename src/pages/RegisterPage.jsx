@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Button, Card, ErrorMessage } from "../components/ui";
+import { buildInstitutionMetadata } from "../utils/institution";
 
 const PHONE_PATTERN = /^[0-9+().\s-]+$/;
 
@@ -26,8 +27,11 @@ function RegisterPage() {
     full_name: "",
     email: "",
     phone_number: "",
-    university_name: "",
+    institution_id: "",
+    institution_name: "",
     department: "",
+    program: "",
+    batch_session: "",
     password: "",
     confirm_password: "",
   });
@@ -80,8 +84,7 @@ function RegisterPage() {
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone_number: form.phone_number.trim(),
-        university_name: form.university_name.trim() || undefined,
-        department: form.department.trim() || undefined,
+        ...buildInstitutionMetadata(form),
         password: form.password,
       });
       setSuccess("Registration successful.");
@@ -103,9 +106,9 @@ function RegisterPage() {
     <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8 sm:py-12">
       <Card className="mx-auto max-w-2xl">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Student Register</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Learner Register</p>
           <h1 className="mt-3 text-3xl font-semibold text-slate-950">Create your account</h1>
-          <p className="mt-2 text-sm text-slate-500">Use your student details to start using FakiBuzz! ISTian.</p>
+          <p className="mt-2 text-sm text-slate-500">Use your student details to start using FakiBuzz.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -144,10 +147,20 @@ function RegisterPage() {
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            University name
+            Institution ID
             <input
-              value={form.university_name}
-              onChange={(event) => updateField("university_name", event.target.value)}
+              value={form.institution_id}
+              onChange={(event) => updateField("institution_id", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              placeholder="Optional"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Institution name
+            <input
+              value={form.institution_name}
+              onChange={(event) => updateField("institution_name", event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Optional"
             />
@@ -158,6 +171,26 @@ function RegisterPage() {
             <input
               value={form.department}
               onChange={(event) => updateField("department", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              placeholder="Optional"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Program
+            <input
+              value={form.program}
+              onChange={(event) => updateField("program", event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              placeholder="Optional"
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Batch/session
+            <input
+              value={form.batch_session}
+              onChange={(event) => updateField("batch_session", event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Optional"
             />

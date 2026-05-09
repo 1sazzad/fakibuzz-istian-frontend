@@ -1,20 +1,33 @@
-# FakiBuzz! ISTian Frontend
+# FakiBuzz Frontend
 
-FakiBuzz! ISTian is a student-focused exam question analysis and prediction system. This repository contains the React frontend used by students and admins to search subjects, browse previous-year questions, review topic analysis, view predicted important questions, generate suggestions, and export results.
+FakiBuzz is an institution-ready exam preparation frontend for learners, admins, and education teams. It supports subject browsing, previous-question review, topic analysis, predictions, suggestions, answer generation, exports, feedback, donation/support information, and admin data workflows without assuming a single university or campus.
 
-## Frontend Features
+## Features
 
-- Student user login and registration
+- Learner login and registration
+- Optional institution metadata during registration and admin creation
 - Admin login and protected admin routes
-- Subject search by subject code or name
+- Subject/course search by code or name
 - Published question viewing by subject
 - Topic analysis with repeated topics, marks, and appeared years
 - Prediction result view for likely important topics or questions
 - Suggested questions based on subject and query
 - PDF and JSON export for suggestions
 - Answer generation workflow
+- Feedback, support/donation, and analytics screens when the backend enables them
 - Responsive UI for mobile, tablet, and desktop
-- User-friendly loading, error, and empty states
+
+## Institution Fields
+
+Registration and admin creation can send these optional fields:
+
+- `institution_id`
+- `institution_name`
+- `department`
+- `program`
+- `batch_session`
+
+For backward compatibility, the frontend also sends `university_name` with the same value as `institution_name` when an institution name is provided.
 
 ## Tech Stack
 
@@ -36,9 +49,10 @@ frontend/
     components/           Shared UI and layout components
       ui/                 Reusable Button, Card, Badge, states, and containers
     context/              Authentication context and hooks
-    pages/                Student and public pages
+    pages/                Learner and public pages
       admin/              Admin dashboard and management pages
     routes/               Protected route wrappers
+    utils/                Shared frontend helpers
     App.jsx               Route definitions and app shell
     main.jsx              React app entry point
     index.css             Tailwind and global styles
@@ -49,15 +63,22 @@ frontend/
 
 ## Environment Variables
 
-Create a local `.env` file in the frontend project root:
+Create a local `.env` file in the frontend project root. Use placeholders only in shared documentation and do not commit real environment values.
 
 ```env
+VITE_APP_NAME=FakiBuzz
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-Use placeholders only in shared documentation. Do not commit real environment values.
+Shared examples may also include:
 
-## Installation
+```env
+APP_NAME=FakiBuzz
+NEXT_PUBLIC_APP_NAME=FakiBuzz
+SITE_NAME=FakiBuzz
+```
+
+## Local Development
 
 ```bash
 npm install
@@ -84,7 +105,7 @@ npm run preview
 
 ## API Configuration
 
-The backend base URL should be configured through the `.env` file using `VITE_API_BASE_URL`. Avoid hardcoding backend URLs in components or pages. API calls should go through the shared API helpers in `src/api/` whenever possible.
+Configure the backend base URL with `VITE_API_BASE_URL`. Avoid hardcoding backend URLs in components or pages. API calls should go through the shared helpers in `src/api/` whenever possible.
 
 ## Security Notes
 
@@ -94,7 +115,7 @@ The backend base URL should be configured through the `.env` file using `VITE_AP
 - Use `.env.example` for placeholder values only.
 - Keep secrets on the backend or in a secure deployment environment.
 
-## Contribution and Development Guidelines
+## Development Guidelines
 
 - Keep components reusable and easy to compose.
 - Keep UI responsive across mobile, tablet, and desktop screens.
@@ -102,12 +123,4 @@ The backend base URL should be configured through the `.env` file using `VITE_AP
 - Use loading, error, and empty states for API-driven pages.
 - Keep API endpoint names consistent with the backend.
 - Prefer small, focused components over duplicated JSX.
-- Test important user flows before submitting changes.
-
-## Known Limitations and Future Improvements
-
-- Better dashboard UI with richer student progress insights
-- More mobile optimization for dense admin views
-- Improved export preview before PDF download
-- Notification or toast system for success and error feedback
-- More detailed client-side validation for forms
+- Test important learner and admin flows before submitting changes.

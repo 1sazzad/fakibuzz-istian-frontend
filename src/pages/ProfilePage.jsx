@@ -1,8 +1,10 @@
 import { useAuth } from "../context/useAuth";
 import { Card, PageHeader, ResponsiveContainer } from "../components/ui";
+import { getInstitutionDisplay } from "../utils/institution";
 
 function ProfilePage() {
   const { user } = useAuth();
+  const institution = getInstitutionDisplay(user);
 
   return (
     <ResponsiveContainer>
@@ -10,7 +12,7 @@ function ProfilePage() {
         <PageHeader
           eyebrow="Profile"
           title={user?.full_name || "User Profile"}
-          description="Your account details used across the FakiBuzz! ISTian dashboard."
+          description="Your account details used across the FakiBuzz dashboard."
         />
         <Card>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -29,6 +31,26 @@ function ProfilePage() {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">User ID</p>
             <p className="mt-2 font-medium text-slate-950">{user?.id || "-"}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Institution ID</p>
+            <p className="mt-2 font-medium text-slate-950">{institution.institutionId}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Institution</p>
+            <p className="mt-2 font-medium text-slate-950">{institution.institutionName}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Department</p>
+            <p className="mt-2 font-medium text-slate-950">{institution.department}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Program</p>
+            <p className="mt-2 font-medium text-slate-950">{institution.program}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Batch/session</p>
+            <p className="mt-2 font-medium text-slate-950">{institution.batchSession}</p>
           </div>
         </div>
         </Card>

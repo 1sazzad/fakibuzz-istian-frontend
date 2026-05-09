@@ -170,6 +170,14 @@ export const apiEndpoints = {
       responseType: "blob",
     }),
   generateAnswer: (payload) => API.post("/generate-answer", payload),
+  submitFeedback: (payload) => API.post("/feedback", payload),
+  getPublicFeedback: (params) => API.get("/feedback/public", { params }),
+  getDonationInfo: () => API.get("/donation-info"),
+  trackVisit: (payload) => API.post("/analytics/visit", payload),
+  getAdminFeedback: (params) => API.get("/admin/feedback", { params }),
+  updateAdminFeedbackStatus: (feedbackId, status) =>
+    API.patch(`/admin/feedback/${encodePath(feedbackId)}/status`, { status }),
+  getAdminAnalyticsSummary: () => API.get("/admin/analytics/summary"),
   importAdminExams: (payload) => API.post("/admin/exams/import", payload, {
     headers: { "Content-Type": "application/json; charset=utf-8" },
   }),
