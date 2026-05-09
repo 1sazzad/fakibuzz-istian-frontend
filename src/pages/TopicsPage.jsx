@@ -269,7 +269,7 @@ function TopicsPage() {
             <Card className="space-y-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Analysis snapshot</p>
-                <h2 className="mt-2 text-2xl font-semibold text-slate-950">What the backend returned</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-slate-950">Subject summary</h2>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
