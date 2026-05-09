@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiEndpoints } from "../api/api";
-import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeQuestions(payload) {
   const items = payload?.questions || payload?.items || payload?.data || payload || [];
@@ -363,6 +363,7 @@ function QuestionsPage() {
                   <p className="mt-4 whitespace-pre-line break-words text-sm leading-7 text-slate-700 sm:text-base">
                     {question.question_text || question.text || "No question text provided."}
                   </p>
+                  <QuestionExtras item={question} />
 
                   <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
                     {question.exam_name && <span className="rounded-full bg-white px-3 py-1">{question.exam_name}</span>}

@@ -18,6 +18,7 @@ export function logoutUser() {
   localStorage.removeItem("user");
 }
 
-export function createAdminUser(data) {
-  return API.post("/auth/create-admin", data);
+export function createAdminUser(data, setupToken = "") {
+  const headers = setupToken.trim() ? { "X-Setup-Token": setupToken.trim() } : undefined;
+  return API.post("/auth/create-admin", data, { headers });
 }

@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { createAdminUser } from "../api/authApi";
 import { Button, Card, ErrorMessage } from "../components/ui";
 
+const PHONE_PATTERN = /^[0-9+().\s-]+$/;
+
 function getErrorMessage(error, fallback) {
   const detail = error.response?.data?.detail || error.response?.data?.message;
   return typeof detail === "string" ? detail : error.message || fallback;
@@ -16,6 +18,7 @@ function AdminCreatePage() {
     password: "",
     university_name: "",
     department: "",
+    setup_token: "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -31,17 +34,33 @@ function AdminCreatePage() {
     setMessage("");
     setError("");
 
+    if (!PHONE_PATTERN.test(form.phone_number.trim())) {
+      setError("Phone number can contain only numbers, +, (), dot, spaces, or hyphens.");
+      setLoading(false);
+      return;
+    }
+
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      await createAdminUser({
-        full_name: form.full_name.trim(),
-        email: form.email.trim(),
-        phone_number: form.phone_number.trim(),
-        password: form.password,
-        role: "admin",
-        university_name: form.university_name.trim() || undefined,
-        department: form.department.trim() || undefined,
-      });
+      await createAdminUser(
+        {
+          full_name: form.full_name.trim(),
+          email: form.email.trim(),
+          phone_number: form.phone_number.trim(),
+          password: form.password,
+          role: "admin",
+          university_name: form.university_name.trim() || undefined,
+          department: form.department.trim() || undefined,
+        },
+        form.setup_token,
+      );
       setMessage("Admin account created. You can login now.");
+      updateField("setup_token", "");
     } catch (err) {
       setError(getErrorMessage(err, "Unable to create admin account."));
     } finally {
@@ -60,9 +79,10 @@ function AdminCreatePage() {
           <input aria-label="Full name" value={form.full_name} onChange={(event) => updateField("full_name", event.target.value)} required placeholder="Full name" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} required placeholder="Email" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Phone number" value={form.phone_number} onChange={(event) => updateField("phone_number", event.target.value)} required placeholder="Phone number" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <input aria-label="Password" type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)} required minLength={6} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Password" type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)} required minLength={8} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="University name" value={form.university_name} onChange={(event) => updateField("university_name", event.target.value)} placeholder="University name (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
           <input aria-label="Department" value={form.department} onChange={(event) => updateField("department", event.target.value)} placeholder="Department (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          <input aria-label="Setup token" type="password" value={form.setup_token} onChange={(event) => updateField("setup_token", event.target.value)} placeholder="Setup token (first admin only)" autoComplete="off" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 sm:col-span-2" />
 
           <div className="sm:col-span-2">
             <ErrorMessage>{error}</ErrorMessage>

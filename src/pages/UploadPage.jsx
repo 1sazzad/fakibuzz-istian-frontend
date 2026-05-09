@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiEndpoints } from "../api/api";
 
+const DEFAULT_MAX_JSON_IMPORT_BYTES = 2 * 1024 * 1024;
+const MAX_JSON_IMPORT_BYTES = Number(import.meta.env.VITE_MAX_JSON_IMPORT_BYTES) || DEFAULT_MAX_JSON_IMPORT_BYTES;
+
 function createQuestion() {
   return {
     question_no: "",
     question_text: "",
     marks: "",
     topic: "",
+    formula_latex: "",
+    diagram_required: false,
+    diagram_reference: "",
+    diagram_description: "",
   };
 }
 
@@ -16,7 +23,36 @@ function normalizeQuestion(question = {}) {
     question_text: String(question.question_text ?? question.text ?? question.question ?? "").trim(),
     marks: question.marks ?? "",
     topic: String(question.topic || "Uncategorized").trim(),
+    formula_latex: question.formula_latex ?? "",
+    diagram_required: question.diagram_required ?? false,
+    diagram_reference: question.diagram_reference ?? "",
+    diagram_description: question.diagram_description ?? "",
   };
+}
+
+function normalizeOptionalText(value, fieldName) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new Error(`${fieldName} must be text when provided.`);
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue || null;
+}
+
+function normalizeDiagramRequired(value) {
+  if (value === null || value === undefined || value === "") {
+    return false;
+  }
+
+  if (typeof value !== "boolean") {
+    throw new Error("diagram_required must be a boolean.");
+  }
+
+  return value;
 }
 
 function expandImportedPayload(rawPayload) {
@@ -77,12 +113,20 @@ function normalizeSingleExamPayload(rawExam) {
   const normalizedExam = normalizeImportedExam(rawExam);
   const totalMarks = Number(normalizedExam.total_marks);
   const questions = normalizedExam.questions
-    .map((question) => ({
-      question_no: String(question.question_no).trim(),
-      question_text: String(question.question_text).trim(),
-      marks: Number(question.marks),
-      topic: String(question.topic || "Uncategorized").trim(),
-    }))
+    .map((question) => {
+      const normalizedQuestion = {
+        question_no: String(question.question_no).trim(),
+        question_text: String(question.question_text).trim(),
+        marks: Number(question.marks),
+        topic: String(question.topic || "Uncategorized").trim(),
+        formula_latex: normalizeOptionalText(question.formula_latex, "formula_latex"),
+        diagram_required: normalizeDiagramRequired(question.diagram_required),
+        diagram_reference: normalizeOptionalText(question.diagram_reference, "diagram_reference"),
+        diagram_description: normalizeOptionalText(question.diagram_description, "diagram_description"),
+      };
+
+      return normalizedQuestion;
+    })
     .filter((question) => question.question_no && question.question_text && Number.isFinite(question.marks));
 
   if (!normalizedExam.exam_name || !normalizedExam.subject_name || !normalizedExam.subject_code) {
@@ -157,6 +201,26 @@ function formatValue(value, fallback = "-") {
 
 function getErrorMessage(errorData, fallback) {
   return formatValue(errorData?.detail || errorData?.message || errorData?.error, fallback);
+}
+
+function formatFileSize(bytes) {
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${Math.ceil(bytes / 1024)} KB`;
+}
+
+function validateJsonFile(file) {
+  if (!file.name.toLowerCase().endsWith(".json")) {
+    return "Only .json files are supported for admin import.";
+  }
+
+  if (file.size > MAX_JSON_IMPORT_BYTES) {
+    return `JSON file must be ${formatFileSize(MAX_JSON_IMPORT_BYTES)} or smaller.`;
+  }
+
+  return "";
 }
 
 function UploadPage() {
@@ -272,8 +336,9 @@ function UploadPage() {
       return;
     }
 
-    if (!file.name.toLowerCase().endsWith(".json")) {
-      setJsonError("Only .json files are supported for admin import.");
+    const validationError = validateJsonFile(file);
+    if (validationError) {
+      setJsonError(validationError);
       setJsonFile(null);
       event.target.value = "";
       return;
@@ -316,6 +381,13 @@ function UploadPage() {
 
     try {
       if (jsonFile) {
+        const validationError = validateJsonFile(jsonFile);
+        if (validationError) {
+          setJsonError(validationError);
+          setMessage(validationError);
+          return;
+        }
+
         const response = await apiEndpoints.importAdminExamFile(jsonFile);
         const result = response.data || {};
 
@@ -830,6 +902,33 @@ function UploadPage() {
                             placeholder="What is SEO? Explain its importance in E-Commerce."
                             className="min-h-28 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white sm:col-span-2"
                           />
+                          <input
+                            value={question.formula_latex}
+                            onChange={(event) => updateQuestion(index, "formula_latex", event.target.value)}
+                            placeholder="Formula (optional)"
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white sm:col-span-2"
+                          />
+                          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(question.diagram_required)}
+                              onChange={(event) => updateQuestion(index, "diagram_required", event.target.checked)}
+                              className="h-4 w-4 rounded border-slate-300"
+                            />
+                            Diagram Required
+                          </label>
+                          <input
+                            value={question.diagram_reference}
+                            onChange={(event) => updateQuestion(index, "diagram_reference", event.target.value)}
+                            placeholder="Diagram reference (optional)"
+                            className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white"
+                          />
+                          <textarea
+                            value={question.diagram_description}
+                            onChange={(event) => updateQuestion(index, "diagram_description", event.target.value)}
+                            placeholder="Drawing instruction (optional)"
+                            className="min-h-20 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-cyan-400 focus:bg-white sm:col-span-2"
+                          />
                         </div>
                       </div>
                     ))}
@@ -871,7 +970,7 @@ function UploadPage() {
                   setJsonFile(null);
                   setJsonImport(event.target.value);
                 }}
-                placeholder='{"exam_name":"Final Examination","subject_code":"CSE-421",...} or [{"exam_name":"..."},{"exam_name":"..."}]'
+                placeholder='{"exam_name":"Final Examination","subject_code":"CSE-421","questions":[{"question_no":"1(a)","question_text":"Prove the parallelogram law.","marks":5,"topic":"Inner Product Spaces","formula_latex":"\\\\|u+v\\\\|^2+\\\\|u-v\\\\|^2=2(\\\\|u\\\\|^2+\\\\|v\\\\|^2)","diagram_required":true,"diagram_reference":"Vector diagram","diagram_description":"Show u, v, u+v, and u-v as directed vectors."}]}'
                 className="min-h-48 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-cyan-400"
               />
               <button

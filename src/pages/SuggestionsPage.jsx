@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
-import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeSubjects(payload) {
   const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
@@ -368,6 +368,7 @@ function SuggestionsPage() {
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Based on previous-year question patterns, topic frequency, marks, recency, and semantic relevance.
                 </p>
+                <QuestionExtras item={item} />
 
                 {item.reason && (
                   <p className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">

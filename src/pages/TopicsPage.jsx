@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeSubjects(payload) {
   const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
@@ -232,9 +232,10 @@ function TopicsPage() {
                         <div className="mt-3 space-y-2">
                           <p className="text-sm font-semibold text-slate-900">Important questions</p>
                           {topic.important_questions.slice(0, 3).map((question, questionIndex) => (
-                            <p key={question.id || questionIndex} className="whitespace-pre-line break-words rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-                              {question.question_text || question.text || question.question || question}
-                            </p>
+                            <div key={question.id || questionIndex} className="rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-slate-700">
+                              <p className="whitespace-pre-line break-words">{question.question_text || question.text || question.question || question}</p>
+                              <QuestionExtras item={question} />
+                            </div>
                           ))}
                         </div>
                       )}
@@ -290,6 +291,7 @@ function TopicsPage() {
                     {analysis.sample_questions.map((question, index) => (
                       <div key={index} className="break-words rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
                         {question.question_text || question.text || question}
+                        <QuestionExtras item={question} />
                       </div>
                     ))}
                   </div>

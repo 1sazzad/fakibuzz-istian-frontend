@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeSubjects(payload) {
   const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
@@ -272,13 +272,15 @@ function PredictionsPage() {
                       <span className="font-semibold text-slate-950">Reason:</span> {item.reason}
                     </p>
                   )}
+                  <QuestionExtras item={item} />
 
                   {Array.isArray(item.related_questions) && item.related_questions.length > 0 && (
                     <div className="mt-4 space-y-2">
-                      <p className="text-sm font-semibold text-slate-950">Related questions</p>
+                      <p className="text-sm font-semibold text-slate-950">Related Previous Questions</p>
                       {item.related_questions.slice(0, 4).map((question, questionIndex) => (
                         <div key={question.id || questionIndex} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                           <p className="whitespace-pre-line break-words leading-6">{question.question_text || question.text || question.question || question}</p>
+                          <QuestionExtras item={question} />
                           <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
                             {question.exam_year && <span>{question.exam_year}</span>}
                             {question.question_no && <span>{question.question_no}</span>}
@@ -291,7 +293,14 @@ function PredictionsPage() {
 
                   <Button
                     type="button"
-                    onClick={() => navigate("/answers", { state: { question: item.predicted_topic || item.question || item.question_text || "", subject_code: item.subject_code || selectedSubject } })}
+                    onClick={() => navigate("/answers", { state: {
+                      question: item.predicted_topic || item.question || item.question_text || "",
+                      subject_code: item.subject_code || selectedSubject,
+                      formula_latex: item.formula_latex || "",
+                      diagram_required: Boolean(item.diagram_required),
+                      diagram_reference: item.diagram_reference || "",
+                      diagram_description: item.diagram_description || "",
+                    } })}
                     className="mt-5"
                   >
                     Generate answer

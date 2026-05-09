@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiEndpoints } from "../../api/api";
 
+const DEBUG_ENDPOINTS_ENABLED = import.meta.env.DEV;
+
 function getErrorMessage(error, fallback) {
   const detail = error.response?.data?.detail || error.response?.data?.message || error.data?.detail;
 
@@ -100,6 +102,11 @@ function ManageSubjectsPage() {
   }
 
   async function loadSystemStatus() {
+    if (!DEBUG_ENDPOINTS_ENABLED) {
+      setError("System status is available only in local development.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setMessage("");
@@ -191,9 +198,11 @@ function ManageSubjectsPage() {
             <button type="button" onClick={() => loadSubjects(status)} className="rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
               Refresh
             </button>
-            <button type="button" onClick={loadSystemStatus} disabled={loading} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
-              System status
-            </button>
+            {DEBUG_ENDPOINTS_ENABLED && (
+              <button type="button" onClick={loadSystemStatus} disabled={loading} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                System status
+              </button>
+            )}
           </div>
 
           {error && <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}

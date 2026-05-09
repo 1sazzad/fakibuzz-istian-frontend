@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { Button, Card, ErrorMessage } from "../components/ui";
 
+const PHONE_PATTERN = /^[0-9+().\s-]+$/;
+
 function getErrorMessage(error, fallback) {
   const detail = error.response?.data?.detail || error.response?.data?.message;
 
@@ -55,8 +57,14 @@ function RegisterPage() {
       return;
     }
 
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters.");
+    if (!PHONE_PATTERN.test(form.phone_number.trim())) {
+      setError("Phone number can contain only numbers, +, (), dot, spaces, or hyphens.");
+      setLoading(false);
+      return;
+    }
+
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
       setLoading(false);
       return;
     }
@@ -162,6 +170,7 @@ function RegisterPage() {
               value={form.password}
               onChange={(event) => updateField("password", event.target.value)}
               required
+              minLength={8}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Choose a password"
             />

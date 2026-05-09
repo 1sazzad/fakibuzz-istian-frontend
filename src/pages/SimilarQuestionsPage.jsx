@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiEndpoints } from "../api/api";
 import { useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeResults(payload) {
   return payload?.results || payload?.matches || payload?.questions || payload?.data || [];
@@ -154,6 +154,7 @@ function SimilarQuestionsPage() {
                     {result.score ?? result.similarity ?? result.confidence ?? result.distance ?? "Match"}
                   </Badge>
                 </div>
+                <QuestionExtras item={result} />
 
                 <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
                   {result.subject_code && <span className="rounded-xl bg-slate-100 px-3 py-2">{result.subject_code}</span>}
