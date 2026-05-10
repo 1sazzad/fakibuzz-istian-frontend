@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { apiEndpoints } from "../api/api";
 import { Badge, Button, Card, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
@@ -10,8 +14,63 @@ const ANSWER_TYPE_MARKS = {
   "15_mark": 15,
 };
 const ALLOWED_ANSWER_TYPES = Object.keys(ANSWER_TYPE_MARKS);
-const MAX_QUESTION_LENGTH = 5000;
-const MAX_CONTEXT_LENGTH = 2000;
+const MAX_QUESTION_LENGTH = 2000;
+const MAX_DIAGRAM_REFERENCE_LENGTH = 500;
+const MAX_DIAGRAM_DESCRIPTION_LENGTH = 2000;
+const MAX_FORMULA_LATEX_LENGTH = 5000;
+
+const RETRIEVAL_SOURCE_LABELS = {
+  chroma: "Chroma context",
+  database_fallback: "Database fallback",
+  fallback: "No strong context",
+};
+
+const FALLBACK_REASON_LABELS = {
+  gemini_error: "AI generation failed, fallback answer used",
+  missing_vectors: "No vectors found, database context used",
+  weak_chroma_results: "Weak vector match, fallback context used",
+  empty_context: "No related context found",
+};
+
+const KATEX_OPTIONS = {
+  throwOnError: false,
+  strict: false,
+  trust: false,
+};
+
+const markdownComponents = {
+  h2: (props) => <h2 className="mt-7 border-b border-slate-200 pb-2 text-xl font-semibold leading-snug text-slate-950 first:mt-0" {...props} />,
+  h3: (props) => <h3 className="mt-5 text-lg font-semibold leading-snug text-slate-900" {...props} />,
+  p: (props) => <p className="my-3 text-[16px] leading-8 text-slate-700 sm:text-[17px]" {...props} />,
+  ul: (props) => <ul className="my-3 list-disc space-y-2 pl-6 text-[16px] leading-8 text-slate-700 sm:text-[17px]" {...props} />,
+  ol: (props) => <ol className="my-3 list-decimal space-y-2 pl-6 text-[16px] leading-8 text-slate-700 sm:text-[17px]" {...props} />,
+  li: (props) => <li className="pl-1" {...props} />,
+  strong: (props) => <strong className="font-semibold text-slate-950" {...props} />,
+  blockquote: (props) => <blockquote className="my-4 border-l-4 border-indigo-200 bg-indigo-50/60 py-2 pl-4 pr-3 text-slate-700" {...props} />,
+  table: (props) => (
+    <div className="my-5 overflow-x-auto rounded-xl border border-slate-200">
+      <table className="min-w-full border-collapse bg-white text-left text-sm text-slate-700" {...props} />
+    </div>
+  ),
+  thead: (props) => <thead className="bg-slate-100 text-slate-950" {...props} />,
+  th: (props) => <th className="border border-slate-200 px-3 py-2 font-semibold align-top" {...props} />,
+  td: (props) => <td className="border border-slate-200 px-3 py-2 align-top" {...props} />,
+  pre: (props) => <pre className="my-4 overflow-x-auto rounded-xl bg-slate-950 p-4 text-sm leading-6 text-slate-100" {...props} />,
+  code: (props) => {
+    const { className = "", children, ...rest } = props;
+    const isBlock = className.includes("language-") || String(children).includes("\n");
+
+    if (isBlock) {
+      return <code className={`${className} block min-w-max`} {...rest}>{children}</code>;
+    }
+
+    return (
+      <code className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.92em] font-medium text-slate-900" {...rest}>
+        {children}
+      </code>
+    );
+  },
+};
 
 function getErrorMessage(error, fallback) {
   const detail = error.response?.data?.detail || error.response?.data?.message;
@@ -98,9 +157,21 @@ function GenerateAnswerPage() {
       return;
     }
 
-    if (formulaLatex.length > MAX_CONTEXT_LENGTH || diagramReference.length > MAX_CONTEXT_LENGTH || diagramDescription.length > MAX_CONTEXT_LENGTH) {
+    if (formulaLatex.length > MAX_FORMULA_LATEX_LENGTH) {
       setIsError(true);
-      setMessage(`Formula and diagram fields must each be under ${MAX_CONTEXT_LENGTH} characters.`);
+      setMessage(`Formula must be ${MAX_FORMULA_LATEX_LENGTH} characters or fewer.`);
+      return;
+    }
+
+    if (diagramReference.length > MAX_DIAGRAM_REFERENCE_LENGTH) {
+      setIsError(true);
+      setMessage(`Diagram reference must be ${MAX_DIAGRAM_REFERENCE_LENGTH} characters or fewer.`);
+      return;
+    }
+
+    if (diagramDescription.length > MAX_DIAGRAM_DESCRIPTION_LENGTH) {
+      setIsError(true);
+      setMessage(`Diagram description must be ${MAX_DIAGRAM_DESCRIPTION_LENGTH} characters or fewer.`);
       return;
     }
 
@@ -146,6 +217,12 @@ function GenerateAnswerPage() {
   }
 
   const relatedQuestions = normalizeRelatedQuestions(answerResult);
+  const retrievalSourceLabel = answerResult?.retrieval_source
+    ? RETRIEVAL_SOURCE_LABELS[answerResult.retrieval_source] || answerResult.retrieval_source
+    : null;
+  const fallbackReasonLabel = answerResult?.fallback_reason
+    ? FALLBACK_REASON_LABELS[answerResult.fallback_reason] || "Fallback context used"
+    : null;
 
   return (
     <ResponsiveContainer>
@@ -272,7 +349,15 @@ function GenerateAnswerPage() {
                 <Badge tone="indigo">{(answerResult?.answer_type || answerType).replace("_", " ")}</Badge>
               </div>
 
-              <div className="mt-4 whitespace-pre-wrap break-words rounded-2xl bg-white/70 px-4 py-3 text-sm leading-7 text-slate-700 sm:text-base">{answer}</div>
+              <div className="mt-4 overflow-x-auto break-words rounded-2xl bg-white/80 px-4 py-3 text-slate-700 [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden [&_.katex-display]:py-2 [&_.katex]:text-[1.04em]">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[[rehypeKatex, KATEX_OPTIONS]]}
+                  components={markdownComponents}
+                >
+                  {answer}
+                </ReactMarkdown>
+              </div>
 
               {answerResult && (
                 <div className="mt-5 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
@@ -280,8 +365,9 @@ function GenerateAnswerPage() {
                   {answerResult.marks !== undefined && answerResult.marks !== null && <span className="rounded-xl bg-white px-3 py-2">Marks: {answerResult.marks}</span>}
                   {answerResult.subject_name && <span className="rounded-xl bg-white px-3 py-2">Subject: {answerResult.subject_name}</span>}
                   {answerResult.subject_code && <span className="rounded-xl bg-white px-3 py-2">Code: {answerResult.subject_code}</span>}
-                  {answerResult.retrieval_source && <span className="rounded-xl bg-white px-3 py-2">Source: {answerResult.retrieval_source}</span>}
-                  {answerResult.fallback_used && <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">Fallback used</span>}
+                  {retrievalSourceLabel && <span className="rounded-xl bg-white px-3 py-2">Source: {retrievalSourceLabel}</span>}
+                  {answerResult.fallback_used && <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">Fallback answer used</span>}
+                  {fallbackReasonLabel && <span className="rounded-xl bg-amber-50 px-3 py-2 text-amber-800">{fallbackReasonLabel}</span>}
                 </div>
               )}
 
