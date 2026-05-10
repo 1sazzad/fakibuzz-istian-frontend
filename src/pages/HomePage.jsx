@@ -11,34 +11,43 @@ import { Button, Card } from "../components/ui";
 const features = [
   {
     title: "Previous Question Search",
-    description: "Find published previous-year questions by subject code or subject name.",
+    titleBangla: "আগের বছরের প্রশ্ন খোঁজা",
   },
   {
     title: "Topic Analysis",
-    description: "Review repeated topics, question patterns, marks, and year-wise trends.",
+    titleBangla: "টপিক বিশ্লেষণ",
   },
   {
     title: "AI-Based Suggestions",
-    description: "Get guided suggestions based on your selected subject and preparation focus.",
+    titleBangla: "AI-ভিত্তিক সাজেশন",
   },
   {
     title: "Important Question Prediction",
-    description: "See likely important questions and topics from historical exam signals.",
+    titleBangla: "গুরুত্বপূর্ণ প্রশ্ন পূর্বাভাস",
   },
   {
     title: "Semantic Search",
-    description: "Search by meaning instead of exact wording to discover similar questions.",
+    titleBangla: "অর্থভিত্তিক সার্চ",
   },
   {
     title: "Export as PDF",
-    description: "Export suggestions and results so you can revise offline before exams.",
+    titleBangla: "PDF হিসেবে ডাউনলোড",
   },
 ];
 
 const painPoints = [
-  "Previous questions are scattered across seniors, PDFs, and class groups.",
-  "Repeated topics are hard to identify manually before exam week.",
-  "Students need faster ways to prioritize what to revise first.",
+  {
+    title: "“Do you have previous questions?”",
+    titleBangla: "“ভাই, আগের বছরের প্রশ্ন আছে?”",
+  },
+  {
+    title: "Too many files, no clear priority",
+    titleBangla: "অনেক ফাইল, কিন্তু কোনটা গুরুত্বপূর্ণ বোঝা কঠিন",
+  },
+  {
+    title: "Exam is near, confidence is low",
+    titleBangla: "পরীক্ষা কাছাকাছি, আত্মবিশ্বাস কম",
+  },
 ];
 
 const steps = [
@@ -80,12 +89,14 @@ function ContactIcon({ type, className }) {
   return type === "WhatsApp" ? <WhatsAppIcon className={className} /> : <MailIcon className={className} />;
 }
 
-function SectionHeading({ eyebrow, title, description, bangla }) {
+function SectionHeading({ eyebrow, title, titleBangla, description, descriptionBangla, bangla }) {
   return (
     <div className="mx-auto max-w-3xl text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700 sm:tracking-[0.18em]">{eyebrow}</p>
+      <p className="break-words text-xs font-semibold uppercase leading-relaxed tracking-[0.08em] text-cyan-700 sm:tracking-[0.14em]">{eyebrow}</p>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{title}</h2>
+      {titleBangla && <p className="mt-3 break-words text-xl font-semibold leading-8 text-slate-900 sm:text-2xl sm:leading-9">{titleBangla}</p>}
       {description && <p className="mt-3 break-words text-base leading-relaxed text-slate-600">{description}</p>}
+      {descriptionBangla && <p className="mt-2 break-words text-base leading-8 text-slate-500">{descriptionBangla}</p>}
       {bangla && <p className="mt-2 break-words text-base leading-relaxed text-slate-600">{bangla}</p>}
     </div>
   );
@@ -187,14 +198,15 @@ function HomePage() {
       <section id="problem" className="px-4 py-12 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <SectionHeading
-            eyebrow="The Problem"
-            title="Exam preparation gets messy when question data is scattered"
-            description="FakiBuzz keeps the workflow focused: find your subject, inspect previous questions, then decide what deserves your limited revision time."
+            eyebrow="EXAM WEEK CHAOS | পরীক্ষার আগের বাস্তবতা"
+            title="Students spend more time finding questions than preparing for exams."
+            titleBangla="পরীক্ষার প্রস্তুতির চেয়ে প্রশ্ন খুঁজতেই শিক্ষার্থীদের বেশি সময় চলে যায়।"
           />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:mt-10 lg:grid-cols-3">
+          <div className="mt-8 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:mt-10 lg:grid-cols-3">
             {painPoints.map((item) => (
-              <Card key={item} className="rounded-2xl">
-                <p className="break-words text-base leading-relaxed text-slate-700">{item}</p>
+              <Card key={item.title} as="article" className="h-full rounded-2xl p-5 sm:p-6">
+                <h3 className="break-words text-lg font-semibold leading-snug text-slate-950 sm:text-xl">{item.title}</h3>
+                <p className="mt-2 break-words text-base font-semibold leading-7 text-slate-900">{item.titleBangla}</p>
               </Card>
             ))}
           </div>
@@ -204,15 +216,15 @@ function HomePage() {
       <section id="features" className="bg-white px-4 py-12 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <SectionHeading
-            eyebrow="Features"
+            eyebrow="FEATURES | ফিচারসমূহ"
             title="Everything students need for smarter revision"
-            description="A focused set of tools for discovering subjects, analyzing question history, and turning patterns into revision priorities."
+            titleBangla="স্মার্ট রিভিশনের জন্য শিক্ষার্থীদের প্রয়োজনীয় সবকিছু"
           />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:mt-10 lg:grid-cols-3">
+          <div className="mt-8 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:mt-10 lg:grid-cols-3">
             {features.map((feature) => (
               <Card key={feature.title} className="h-full">
                 <h3 className="break-words text-lg font-semibold text-slate-950">{feature.title}</h3>
-                <p className="mt-3 break-words text-sm leading-relaxed text-slate-600">{feature.description}</p>
+                <p className="mt-2 break-words text-base font-semibold leading-7 text-slate-900">{feature.titleBangla}</p>
               </Card>
             ))}
           </div>

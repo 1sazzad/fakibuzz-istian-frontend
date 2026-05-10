@@ -11,7 +11,7 @@
   input,
   textarea,
   select {
-    font-family: "Noto Sans Bengali", "Noto Sans", "SolaimanLipi", "Arial", sans-serif;
+    font-family: system-ui, "Noto Sans Bengali", "Noto Sans", "SolaimanLipi", "Arial", sans-serif;
   }
 
   html {
