@@ -383,31 +383,42 @@ function HomePage() {
       </section>
 
       <section id="support" className="bg-white px-4 py-12 sm:px-6 md:py-20 lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-10">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Support</p>
-            <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Support FakiBuzz</h2>
-            <h3 className="mt-3 break-words text-xl font-semibold text-slate-950 sm:text-2xl">FakiBuzz-কে সাপোর্ট করুন</h3>
-            <p className="mt-4 break-words text-base leading-relaxed text-slate-600">
-              Your support helps us keep this platform useful for students.
+            <p className="break-words text-xs font-semibold uppercase leading-relaxed tracking-[0.08em] text-cyan-700 sm:tracking-[0.14em]">
+              SUPPORT COMMUNITY | শিক্ষার্থী কমিউনিটিকে সহযোগিতা করুন
             </p>
-            <p className="mt-2 break-words text-base leading-relaxed text-slate-600">
-              আপনার সহযোগিতা শিক্ষার্থীদের জন্য এই প্ল্যাটফর্মটি চালু ও উন্নত রাখতে সাহায্য করবে।
-            </p>
-          </div>
-          <Card className="self-start">
-            <h3 className="break-words text-xl font-semibold text-slate-950">Donation methods</h3>
-            <p className="mt-3 break-words text-sm leading-relaxed text-slate-600">
-              Donation channels are loaded from the support page when configured.
-            </p>
-            {/* TODO: Render configured donation channels here if public donation info should be displayed on the homepage. */}
-            <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
-              <p className="break-words text-sm font-semibold text-slate-950">Support channel placeholder</p>
-              <p className="mt-2 break-words text-sm leading-relaxed text-slate-500">Configured payment details will appear here when available.</p>
+            <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+              Not every student gets equal access to exam resources.
+            </h2>
+            <h3 className="mt-3 break-words text-xl font-semibold leading-8 text-slate-900 sm:text-2xl sm:leading-9">
+              সব শিক্ষার্থী সমানভাবে পরীক্ষার রিসোর্স পায় না।
+            </h3>
+            <div className="mt-6 space-y-3">
+              <p className="break-words text-base leading-relaxed text-slate-600">
+                Some students get previous questions from seniors instantly.
+              </p>
+              <p className="break-words text-base leading-relaxed text-slate-600">
+                Others spend hours searching through groups, PDFs, and old drives.
+              </p>
+              <p className="break-words text-base leading-8 text-slate-500">
+                কেউ সহজেই আগের বছরের প্রশ্ন পেয়ে যায়।
+              </p>
+              <p className="break-words text-base leading-8 text-slate-500">
+                আবার কেউ ঘণ্টার পর ঘণ্টা খুঁজেও পায় না।
+              </p>
             </div>
-            <Button as={Link} to="/support" variant="secondary" className="mt-5 w-full sm:w-auto">
-              View Support Page
+            <Button as={Link} to="/support" size="lg" className="mt-8 w-full sm:w-auto">
+              Support Students | শিক্ষার্থীদের সহযোগিতা করুন
             </Button>
+          </div>
+          <Card className="self-start border-cyan-100 bg-cyan-50/60">
+            <p className="break-words text-xl font-semibold leading-8 text-slate-950">
+              A small contribution can help keep exam resources accessible for more students.
+            </p>
+            <p className="mt-4 break-words text-lg font-semibold leading-8 text-slate-800">
+              আপনার ছোট সহযোগিতাও আরও বেশি শিক্ষার্থীর জন্য রিসোর্স সহজলভ্য রাখতে সাহায্য করতে পারে।
+            </p>
           </Card>
         </div>
       </section>
