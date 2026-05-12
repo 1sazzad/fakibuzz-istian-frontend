@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentUser, loginUser, logoutUser, registerUser } from "../api/authApi";
+import { isAdminRole, isSuperAdminRole } from "../utils/auth";
 import { AuthContext } from "./auth-context";
 
 function readStoredUser() {
@@ -13,7 +14,11 @@ function readStoredUser() {
 }
 
 function getRoleFromData(data, fallback = "") {
-  return data?.role || data?.user?.role || fallback || "";
+  return data?.role || data?.user?.role || data?.profile?.role || fallback || "";
+}
+
+function getUserFromData(data) {
+  return data?.user || data?.profile || data || null;
 }
 
 function saveAuthSession(data) {
@@ -61,7 +66,7 @@ export function AuthProvider({ children }) {
 
     try {
       const response = await getCurrentUser();
-      const currentUser = response.data?.user || response.data || null;
+      const currentUser = getUserFromData(response.data);
       const nextRole = getRoleFromData(response.data, currentUser?.role || localStorage.getItem("role") || "");
 
       setToken(storedToken);
@@ -140,7 +145,8 @@ export function AuthProvider({ children }) {
       role,
       loading,
       isAuthenticated: Boolean(token),
-      isAdmin: role === "admin",
+      isAdmin: isAdminRole(role),
+      isSuperAdmin: isSuperAdminRole(role),
       login,
       register,
       logout,

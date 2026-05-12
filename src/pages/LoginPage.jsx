@@ -1,21 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import ResendVerificationForm from "../components/ResendVerificationForm";
 import { Button, Card, ErrorMessage } from "../components/ui";
-
-function getErrorMessage(error, fallback) {
-  const detail = error.response?.data?.detail || error.response?.data?.message;
-
-  if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(", ");
-  }
-
-  if (detail && typeof detail === "object") {
-    return detail.msg || detail.message || JSON.stringify(detail);
-  }
-
-  return detail || error.message || fallback;
-}
+import { getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
 
 function LoginPage() {
   const { login, role } = useAuth();
@@ -24,6 +12,7 @@ function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showResendVerification, setShowResendVerification] = useState(false);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -33,6 +22,7 @@ function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setShowResendVerification(false);
 
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       setError("Enter a valid email address.");
@@ -46,10 +36,15 @@ function LoginPage() {
         password: form.password,
       });
       const nextRole = user?.role || role || localStorage.getItem("role");
-      const fallbackPath = nextRole === "admin" ? "/admin/dashboard" : "/dashboard";
+      const fallbackPath = isAdminRole(nextRole) ? "/admin/dashboard" : "/dashboard";
       navigate(location.state?.from?.pathname || fallbackPath, { replace: true });
     } catch (err) {
-      setError(getErrorMessage(err, "Wrong email or password."));
+      if (isUnverifiedEmailError(err)) {
+        setError(UNVERIFIED_EMAIL_MESSAGE);
+        setShowResendVerification(true);
+      } else {
+        setError(getApiErrorMessage(err, "Wrong email or password."));
+      }
     } finally {
       setLoading(false);
     }
@@ -94,11 +89,23 @@ function LoginPage() {
           </label>
 
           <ErrorMessage>{error}</ErrorMessage>
+          {showResendVerification && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-950">Need a new verification email?</p>
+              <ResendVerificationForm initialEmail={form.email} compact />
+            </div>
+          )}
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Signing in..." : "Login"}
           </Button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-slate-500">
+          <Link to="/forgot-password" className="font-semibold text-indigo-700 hover:text-indigo-800">
+            Forgot password?
+          </Link>
+        </p>
 
         <p className="mt-5 text-center text-sm text-slate-500">
           New here?{" "}

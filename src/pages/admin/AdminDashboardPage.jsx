@@ -5,8 +5,13 @@ import { apiEndpoints } from "../../api/api";
 import { useAuth } from "../../context/useAuth";
 import { Badge, Button, Card, ErrorMessage, PageHeader, ResponsiveContainer } from "../../components/ui";
 import { buildInstitutionMetadata } from "../../utils/institution";
-
-const PHONE_PATTERN = /^[0-9+().\s-]+$/;
+import {
+  getApiErrorMessage,
+  PASSWORD_PATTERN,
+  PASSWORD_VALIDATION_MESSAGE,
+  PHONE_PATTERN,
+  PHONE_VALIDATION_MESSAGE,
+} from "../../utils/auth";
 
 const adminWorkflows = [
   { to: "/admin/upload", title: "Upload Questions", description: "Import admin exam JSON and create embeddings.", badge: "Ingest" },
@@ -16,11 +21,6 @@ const adminWorkflows = [
 
 const feedbackStatuses = ["new", "reviewed", "approved", "resolved", "ignored"];
 const FEEDBACK_ROWS_PER_PAGE = 5;
-
-function getErrorMessage(error, fallback) {
-  const detail = error.response?.data?.detail || error.response?.data?.message;
-  return typeof detail === "string" ? detail : error.message || fallback;
-}
 
 function normalizeFeedback(payload) {
   const items = payload?.feedback || payload?.items || payload?.data || payload || [];
@@ -32,7 +32,7 @@ function getFeedbackId(item) {
 }
 
 function AdminDashboardPage() {
-  const { user } = useAuth();
+  const { isSuperAdmin, user } = useAuth();
   const [adminForm, setAdminForm] = useState({
     full_name: "",
     email: "",
@@ -72,7 +72,7 @@ function AdminDashboardPage() {
         }
       } catch (error) {
         if (active) {
-          setAnalyticsError(getErrorMessage(error, "Unable to load analytics summary."));
+          setAnalyticsError(getApiErrorMessage(error, "Unable to load analytics summary."));
         }
       } finally {
         if (active) {
@@ -103,7 +103,7 @@ function AdminDashboardPage() {
         }
       } catch (error) {
         if (active) {
-          setFeedbackError(getErrorMessage(error, "Unable to load feedback."));
+          setFeedbackError(getApiErrorMessage(error, "Unable to load feedback."));
         }
       } finally {
         if (active) {
@@ -130,13 +130,13 @@ function AdminDashboardPage() {
     setAdminMessage("");
 
     if (!PHONE_PATTERN.test(adminForm.phone_number.trim())) {
-      setAdminError("Phone number can contain only numbers, +, (), dot, spaces, or hyphens.");
+      setAdminError(PHONE_VALIDATION_MESSAGE);
       setCreatingAdmin(false);
       return;
     }
 
-    if (adminForm.password.length < 8) {
-      setAdminError("Password must be at least 8 characters.");
+    if (!PASSWORD_PATTERN.test(adminForm.password)) {
+      setAdminError(PASSWORD_VALIDATION_MESSAGE);
       setCreatingAdmin(false);
       return;
     }
@@ -147,10 +147,10 @@ function AdminDashboardPage() {
         email: adminForm.email.trim(),
         phone_number: adminForm.phone_number.trim(),
         password: adminForm.password,
-        role: "admin",
+        role: "sub_admin",
         ...buildInstitutionMetadata(adminForm),
       });
-      setAdminMessage("Admin account created.");
+      setAdminMessage("Sub admin account created.");
       setAdminForm({
         full_name: "",
         email: "",
@@ -163,7 +163,7 @@ function AdminDashboardPage() {
         batch_session: "",
       });
     } catch (error) {
-      setAdminError(getErrorMessage(error, "Unable to create admin account."));
+      setAdminError(getApiErrorMessage(error, "Unable to create admin account."));
     } finally {
       setCreatingAdmin(false);
     }
@@ -181,7 +181,7 @@ function AdminDashboardPage() {
           : items.filter((item) => getFeedbackId(item) !== feedbackId),
       );
     } catch (error) {
-      setFeedbackError(getErrorMessage(error, "Unable to update feedback status."));
+      setFeedbackError(getApiErrorMessage(error, "Unable to update feedback status."));
     } finally {
       setUpdatingFeedbackId("");
     }
@@ -393,9 +393,10 @@ function AdminDashboardPage() {
         )}
       </Card>
 
+        {isSuperAdmin && (
         <Card as="form" onSubmit={handleCreateAdmin}>
-          <h2 className="text-2xl font-semibold text-slate-950">Create admin</h2>
-          <p className="mt-1 text-sm text-slate-500">Create the first admin or add another admin when you are already authenticated as admin.</p>
+          <h2 className="text-2xl font-semibold text-slate-950">Create sub admin</h2>
+          <p className="mt-1 text-sm text-slate-500">Create a sub admin account. This action is available only to super admins.</p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <input aria-label="Full name" value={adminForm.full_name} onChange={(event) => updateAdminField("full_name", event.target.value)} required placeholder="Full name" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
@@ -415,9 +416,10 @@ function AdminDashboardPage() {
           </div>
 
           <Button type="submit" disabled={creatingAdmin} className="mt-5 w-full sm:w-auto">
-            {creatingAdmin ? "Creating..." : "Create admin account"}
+            {creatingAdmin ? "Creating..." : "Create sub admin account"}
           </Button>
         </Card>
+        )}
     </ResponsiveContainer>
   );
 }

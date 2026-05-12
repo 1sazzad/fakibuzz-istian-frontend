@@ -1,28 +1,17 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import ResendVerificationForm from "../components/ResendVerificationForm";
 import { Button, Card, ErrorMessage } from "../components/ui";
-
-function getErrorMessage(error, fallback) {
-  const detail = error.response?.data?.detail || error.response?.data?.message;
-
-  if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(", ");
-  }
-
-  if (detail && typeof detail === "object") {
-    return detail.msg || detail.message || JSON.stringify(detail);
-  }
-
-  return detail || error.message || fallback;
-}
+import { getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
 
 function AdminLoginPage() {
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showResendVerification, setShowResendVerification] = useState(false);
 
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -32,6 +21,7 @@ function AdminLoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setShowResendVerification(false);
 
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
       setError("Enter a valid email address.");
@@ -47,14 +37,20 @@ function AdminLoginPage() {
 
       const nextRole = user?.role || localStorage.getItem("role");
 
-      if (nextRole !== "admin") {
+      if (!isAdminRole(nextRole)) {
+        logout();
         setError("You are not authorized to open admin pages.");
         return;
       }
 
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
-      setError(getErrorMessage(err, "Wrong email or password."));
+      if (isUnverifiedEmailError(err)) {
+        setError(UNVERIFIED_EMAIL_MESSAGE);
+        setShowResendVerification(true);
+      } else {
+        setError(getApiErrorMessage(err, "Wrong email or password."));
+      }
     } finally {
       setLoading(false);
     }
@@ -95,6 +91,12 @@ function AdminLoginPage() {
           </label>
 
           <ErrorMessage>{error}</ErrorMessage>
+          {showResendVerification && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-950">Need a new verification email?</p>
+              <ResendVerificationForm initialEmail={form.email} compact />
+            </div>
+          )}
 
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? "Signing in..." : "Admin Login"}
@@ -102,9 +104,9 @@ function AdminLoginPage() {
         </form>
 
         <p className="mt-5 text-center text-sm text-slate-500">
-          Need first admin setup?{" "}
+          Need super admin setup?{" "}
           <Link to="/admin/create" className="font-semibold text-indigo-700 hover:text-indigo-800">
-            Create admin
+            Create super admin
           </Link>
         </p>
       </Card>

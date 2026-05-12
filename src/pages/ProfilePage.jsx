@@ -33,6 +33,14 @@ function ProfilePage() {
             <p className="mt-2 font-medium text-slate-950">{user?.id || "-"}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Email verified</p>
+            <p className="mt-2 font-medium text-slate-950">{user?.is_email_verified ? "Yes" : "No"}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Terms accepted</p>
+            <p className="mt-2 font-medium text-slate-950">{user?.terms_accepted ? "Yes" : "No"}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Institution ID</p>
             <p className="mt-2 font-medium text-slate-950">{institution.institutionId}</p>
           </div>

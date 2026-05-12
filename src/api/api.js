@@ -51,7 +51,11 @@ API.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 403) {
+    if (
+      error.response?.status === 403 &&
+      error.response.data?.detail !== "Please verify your email before logging in." &&
+      error.response.data?.message !== "Please verify your email before logging in."
+    ) {
       window.dispatchEvent(new Event("auth:forbidden"));
     }
 
@@ -79,12 +83,16 @@ export async function apiFetch(path, options = {}) {
     window.location.assign("/login");
   }
 
-  if (response.status === 403) {
-    window.dispatchEvent(new Event("auth:forbidden"));
-  }
-
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+
+  if (
+    response.status === 403 &&
+    data?.detail !== "Please verify your email before logging in." &&
+    data?.message !== "Please verify your email before logging in."
+  ) {
+    window.dispatchEvent(new Event("auth:forbidden"));
+  }
 
   if (!response.ok) {
     const quotaMessage = response.status === 429 && data?.quota ? data.detail || "Monthly AI answer quota exceeded." : "";
@@ -157,6 +165,12 @@ export const apiEndpoints = {
   register: (payload) => API.post("/auth/register", payload),
   login: (payload) => API.post("/auth/login", payload),
   getCurrentUser: () => API.get("/auth/me"),
+  verifyEmail: (payload) => API.post("/auth/verify-email", payload),
+  resendVerificationEmail: (payload) => API.post("/auth/resend-verification-email", payload),
+  forgotPassword: (payload) => API.post("/auth/forgot-password", payload),
+  resetPassword: (payload) => API.post("/auth/reset-password", payload),
+  getUniversities: () => API.get("/universities"),
+  getUniversityDepartments: (universityId) => API.get(`/universities/${encodePath(universityId)}/departments`),
   health: () => API.get("/health"),
   searchSubject: (query) => API.get("/subjects/search", { params: { query } }),
   getSubjectOverview: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/overview`),
@@ -177,6 +191,14 @@ export const apiEndpoints = {
   updateAdminFeedbackStatus: (feedbackId, status) =>
     API.patch(`/admin/feedback/${encodePath(feedbackId)}/status`, { status }),
   getAdminAnalyticsSummary: () => API.get("/admin/analytics/summary"),
+  listAdminUniversities: () => API.get("/admin/universities"),
+  createUniversity: (payload) => API.post("/admin/universities", payload),
+  updateUniversity: (universityId, payload) => API.patch(`/admin/universities/${encodePath(universityId)}`, payload),
+  deleteUniversity: (universityId) => API.delete(`/admin/universities/${encodePath(universityId)}`),
+  listAdminDepartments: () => API.get("/admin/departments"),
+  createDepartment: (payload) => API.post("/admin/departments", payload),
+  updateDepartment: (departmentId, payload) => API.patch(`/admin/departments/${encodePath(departmentId)}`, payload),
+  deleteDepartment: (departmentId) => API.delete(`/admin/departments/${encodePath(departmentId)}`),
   importAdminExams: (payload) => API.post("/admin/exams/import", payload, {
     headers: { "Content-Type": "application/json; charset=utf-8" },
   }),
@@ -190,6 +212,38 @@ export const apiEndpoints = {
   deleteSubjectTopic: (subjectCode, topicName) => API.delete(`/admin/subjects/${encodePath(subjectCode)}/topics/${encodePath(topicName)}`),
   getSystemStatus: () => API.get("/debug/system-status"),
 };
+
+export function listAdminUniversities() {
+  return API.get("/admin/universities");
+}
+
+export function createUniversity(payload) {
+  return API.post("/admin/universities", payload);
+}
+
+export function updateUniversity(universityId, payload) {
+  return API.patch(`/admin/universities/${encodePath(universityId)}`, payload);
+}
+
+export function deleteUniversity(universityId) {
+  return API.delete(`/admin/universities/${encodePath(universityId)}`);
+}
+
+export function listAdminDepartments() {
+  return API.get("/admin/departments");
+}
+
+export function createDepartment(payload) {
+  return API.post("/admin/departments", payload);
+}
+
+export function updateDepartment(departmentId, payload) {
+  return API.patch(`/admin/departments/${encodePath(departmentId)}`, payload);
+}
+
+export function deleteDepartment(departmentId) {
+  return API.delete(`/admin/departments/${encodePath(departmentId)}`);
+}
 
 export { buildQuery };
 

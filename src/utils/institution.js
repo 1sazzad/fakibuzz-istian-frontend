@@ -14,11 +14,11 @@ export function buildInstitutionMetadata(values = {}) {
 
 export function getInstitutionDisplay(user = {}) {
   return {
-    institutionId: user.institution_id || "-",
-    institutionName: user.institution_name || user.university_name || "-",
+    institutionId: user.university_id || user.institution_id || "-",
+    institutionName: user.university_name || user.institution_name || user.university?.university_name || "-",
     department: user.department || "-",
-    program: user.program || "-",
-    batchSession: user.batch_session || "-",
+    program: user.college_institute_school || user.college || user.program || "-",
+    batchSession: user.year_semester || user.year || user.semester || user.batch_session || "-",
   };
 }
 

@@ -1,46 +1,153 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { getUniversities, getUniversityDepartments } from "../api/authApi";
 import { useAuth } from "../context/useAuth";
 import { Button, Card, ErrorMessage } from "../components/ui";
 import { buildInstitutionMetadata } from "../utils/institution";
+import {
+  getApiErrorMessage,
+  PASSWORD_PATTERN,
+  PASSWORD_VALIDATION_MESSAGE,
+  PHONE_PATTERN,
+  PHONE_VALIDATION_MESSAGE,
+} from "../utils/auth";
 
-const PHONE_PATTERN = /^[0-9+().\s-]+$/;
-
-function getErrorMessage(error, fallback) {
-  const detail = error.response?.data?.detail || error.response?.data?.message;
-
-  if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(", ");
+function isActiveDepartment(department) {
+  if (department.is_active !== undefined) {
+    return Boolean(department.is_active);
   }
 
-  if (detail && typeof detail === "object") {
-    return detail.msg || detail.message || JSON.stringify(detail);
+  if (department.active !== undefined) {
+    return Boolean(department.active);
   }
 
-  return detail || error.message || fallback;
+  if (department.status !== undefined) {
+    return String(department.status).toLowerCase() === "active";
+  }
+
+  return true;
 }
 
 function RegisterPage() {
   const { register } = useAuth();
-  const navigate = useNavigate();
   const [form, setForm] = useState({
     full_name: "",
     email: "",
     phone_number: "",
-    institution_id: "",
-    institution_name: "",
-    department: "",
+    university_id: "",
+    college_institute_school: "",
+    department_id: "",
     program: "",
-    batch_session: "",
+    year_semester: "",
     password: "",
     confirm_password: "",
+    terms_accepted: false,
   });
+  const [universities, setUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(true);
+  const [universitiesError, setUniversitiesError] = useState("");
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentsError, setDepartmentsError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUniversities() {
+      setUniversitiesLoading(true);
+      setUniversitiesError("");
+
+      try {
+        const response = await getUniversities();
+        const data = response.data?.universities || response.data?.items || response.data || [];
+        if (isMounted) {
+          setUniversities(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setUniversitiesError(getApiErrorMessage(err, "Unable to load universities."));
+        }
+      } finally {
+        if (isMounted) {
+          setUniversitiesLoading(false);
+        }
+      }
+    }
+
+    loadUniversities();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDepartments() {
+      if (!form.university_id) {
+        setDepartments([]);
+        setDepartmentsError("");
+        setDepartmentsLoading(false);
+        return;
+      }
+
+      setDepartments([]);
+      setDepartmentsError("");
+      setDepartmentsLoading(true);
+
+      try {
+        const response = await getUniversityDepartments(form.university_id);
+        const data = response.data?.departments || response.data?.items || response.data || [];
+        const activeDepartments = Array.isArray(data) ? data.filter(isActiveDepartment) : [];
+
+        if (isMounted) {
+          setDepartments(activeDepartments);
+        }
+      } catch {
+        if (isMounted) {
+          setDepartmentsError("Could not load departments. Please try again.");
+          setDepartments([]);
+        }
+      } finally {
+        if (isMounted) {
+          setDepartmentsLoading(false);
+        }
+      }
+    }
+
+    loadDepartments();
+    return () => {
+      isMounted = false;
+    };
+  }, [form.university_id]);
+
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function handleUniversityChange(value) {
+    setForm((current) => ({
+      ...current,
+      university_id: value,
+      department_id: "",
+    }));
+    setDepartments([]);
+    setDepartmentsError("");
+  }
+
+  function getUniversityLabel(university) {
+    const name = university.university_name || university.name || "";
+    const shortName = university.short_name || "";
+    return shortName ? `${name} (${shortName})` : name;
+  }
+
+  function getDepartmentLabel(department) {
+    const name = department.department_name || department.name || "";
+    const shortName = department.short_name || "";
+    return shortName ? `${name} (${shortName})` : name;
   }
 
   async function handleSubmit(event) {
@@ -49,8 +156,28 @@ function RegisterPage() {
     setError("");
     setSuccess("");
 
-    if (!form.full_name.trim() || !form.email.trim() || !form.phone_number.trim() || !form.password || !form.confirm_password) {
-      setError("All fields are required.");
+    if (
+      !form.full_name.trim() ||
+      !form.email.trim() ||
+      !form.phone_number.trim() ||
+      !form.university_id ||
+      !form.department_id ||
+      !form.program.trim() ||
+      !form.year_semester.trim() ||
+      !form.password ||
+      !form.confirm_password
+    ) {
+      if (!form.university_id) {
+        setError("University is required.");
+      } else if (!form.department_id) {
+        setError("Department is required.");
+      } else if (!form.program.trim()) {
+        setError("Program/Degree is required.");
+      } else if (!form.year_semester.trim()) {
+        setError("Year/Semester is required.");
+      } else {
+        setError("All fields are required.");
+      }
       setLoading(false);
       return;
     }
@@ -62,13 +189,13 @@ function RegisterPage() {
     }
 
     if (!PHONE_PATTERN.test(form.phone_number.trim())) {
-      setError("Phone number can contain only numbers, +, (), dot, spaces, or hyphens.");
+      setError(PHONE_VALIDATION_MESSAGE);
       setLoading(false);
       return;
     }
 
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (!PASSWORD_PATTERN.test(form.password)) {
+      setError(PASSWORD_VALIDATION_MESSAGE);
       setLoading(false);
       return;
     }
@@ -79,24 +206,43 @@ function RegisterPage() {
       return;
     }
 
+    if (!form.terms_accepted) {
+      setError("You must accept the terms before creating an account.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const user = await register({
+      const selectedUniversity = universities.find((university) => String(university.id ?? university.university_id) === form.university_id);
+      const universityId = Number.isNaN(Number(form.university_id)) ? form.university_id : Number(form.university_id);
+      const departmentId = Number.isNaN(Number(form.department_id)) ? form.department_id : Number(form.department_id);
+      const response = await register({
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone_number: form.phone_number.trim(),
-        ...buildInstitutionMetadata(form),
+        university_id: universityId,
+        department_id: departmentId,
+        college_institute_school: form.college_institute_school.trim() || undefined,
+        college: form.college_institute_school.trim() || undefined,
+        program: form.program.trim(),
+        batch_session: form.year_semester.trim(),
+        year_semester: form.year_semester.trim(),
+        year: form.year_semester.trim() || undefined,
+        semester: form.year_semester.trim() || undefined,
+        terms_accepted: true,
+        ...buildInstitutionMetadata({
+          institution_id: String(form.university_id),
+          institution_name: selectedUniversity ? getUniversityLabel(selectedUniversity) : "",
+          program: form.program,
+          batch_session: form.year_semester,
+        }),
         password: form.password,
       });
-      setSuccess("Registration successful.");
-      setTimeout(() => {
-        if (user?.role) {
-          navigate(user.role === "admin" ? "/admin/dashboard" : "/dashboard", { replace: true });
-        } else {
-          navigate("/login", { replace: true, state: { message: "Registration successful. Please login." } });
-        }
-      }, 700);
+      setSuccess(
+        `${response?.message || "Account created successfully. If you did not receive a verification email, use resend verification."}\nCheck your email to verify your account.`,
+      );
     } catch (err) {
-      setError(getErrorMessage(err, "Registration failed. Email or phone number may already be used."));
+      setError(getApiErrorMessage(err, "Registration failed. Email or phone number may already be used."));
     } finally {
       setLoading(false);
     }
@@ -146,21 +292,32 @@ function RegisterPage() {
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Institution ID
-            <input
-              value={form.institution_id}
-              onChange={(event) => updateField("institution_id", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
-            />
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            University
+            <select
+              value={form.university_id}
+              onChange={(event) => handleUniversityChange(event.target.value)}
+              required
+              disabled={universitiesLoading}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              <option value="">{universitiesLoading ? "Loading universities..." : "Select university"}</option>
+              {universities.map((university) => {
+                const id = university.id ?? university.university_id;
+                return (
+                  <option key={id || getUniversityLabel(university)} value={id}>
+                    {getUniversityLabel(university)}
+                  </option>
+                );
+              })}
+            </select>
           </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Institution name
+          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+            College / institute / school
             <input
-              value={form.institution_name}
-              onChange={(event) => updateField("institution_name", event.target.value)}
+              value={form.college_institute_school}
+              onChange={(event) => updateField("college_institute_school", event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Optional"
             />
@@ -168,31 +325,50 @@ function RegisterPage() {
 
           <label className="block text-sm font-medium text-slate-700">
             Department
-            <input
-              value={form.department}
-              onChange={(event) => updateField("department", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
-            />
+            <select
+              value={form.department_id}
+              onChange={(event) => updateField("department_id", event.target.value)}
+              required
+              disabled={!form.university_id || departmentsLoading || departments.length === 0}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
+            >
+              <option value="">
+                {!form.university_id
+                  ? "Select university first"
+                  : departmentsLoading
+                    ? "Loading departments..."
+                    : "Select department"}
+              </option>
+              {departments.map((department) => {
+                const id = department.id ?? department.department_id;
+                return (
+                  <option key={id || getDepartmentLabel(department)} value={id}>
+                    {getDepartmentLabel(department)}
+                  </option>
+                );
+              })}
+            </select>
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            Program
+            Program / degree
             <input
               value={form.program}
               onChange={(event) => updateField("program", event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
+              placeholder="BSc in CSE"
             />
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            Batch/session
+            Year / semester
             <input
-              value={form.batch_session}
-              onChange={(event) => updateField("batch_session", event.target.value)}
+              value={form.year_semester}
+              onChange={(event) => updateField("year_semester", event.target.value)}
+              required
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
+              placeholder="Year 2 / Semester 1"
             />
           </label>
 
@@ -221,9 +397,43 @@ function RegisterPage() {
             />
           </label>
 
+          <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.terms_accepted}
+              onChange={(event) => updateField("terms_accepted", event.target.checked)}
+              required
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>
+              I accept the{" "}
+              <Link to="/terms-of-service" className="font-semibold text-indigo-700 hover:text-indigo-800">
+                terms of service
+              </Link>
+              .
+            </span>
+          </label>
+
           <div className="sm:col-span-2">
+            <ErrorMessage tone="warning">{universitiesError}</ErrorMessage>
+            <ErrorMessage tone="warning">{departmentsError}</ErrorMessage>
+            <ErrorMessage tone="info">
+              {form.university_id && !departmentsLoading && !departmentsError && departments.length === 0
+                ? "No departments found for this university. Please contact support."
+                : ""}
+            </ErrorMessage>
             <ErrorMessage>{error}</ErrorMessage>
             <ErrorMessage tone="success">{success}</ErrorMessage>
+            {success && (
+              <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                <Link to="/login" className="font-semibold text-indigo-700 hover:text-indigo-800">
+                  Login after verification
+                </Link>
+                <Link to="/resend-verification" className="font-semibold text-indigo-700 hover:text-indigo-800">
+                  Resend verification
+                </Link>
+              </div>
+            )}
           </div>
 
           <Button type="submit" disabled={loading} className="w-full sm:col-span-2">

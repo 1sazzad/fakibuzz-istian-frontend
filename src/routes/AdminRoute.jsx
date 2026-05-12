@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { PERMISSION_DENIED_MESSAGE } from "../utils/auth";
 
 function AdminRoute({ children }) {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -13,7 +14,7 @@ function AdminRoute({ children }) {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace state={{ message: "You do not have permission." }} />;
+    return <div className="px-4 py-10 text-center text-sm font-medium text-rose-700">{PERMISSION_DENIED_MESSAGE}</div>;
   }
 
   return children || <Outlet />;

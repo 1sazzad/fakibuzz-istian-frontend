@@ -5,7 +5,9 @@ import Navbar from "./components/Navbar";
 import AnalyticsTracker from "./components/AnalyticsTracker";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
+import SuperAdminRoute from "./routes/SuperAdminRoute";
 import { useAuth } from "./context/useAuth";
+import { PERMISSION_DENIED_MESSAGE } from "./utils/auth";
 
 import UploadPage from "./pages/UploadPage";
 import QuestionsPage from "./pages/QuestionsPage";
@@ -16,6 +18,10 @@ import SuggestionsPage from "./pages/SuggestionsPage";
 import GenerateAnswerPage from "./pages/GenerateAnswerPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ResendVerificationPage from "./pages/ResendVerificationPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import DonationPage from "./pages/DonationPage";
 import HomePage from "./pages/HomePage";
@@ -30,6 +36,9 @@ import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminUploadPage from "./pages/admin/AdminUploadPage";
 import ManageQuestionsPage from "./pages/admin/ManageQuestionsPage";
 import ManageSubjectsPage from "./pages/admin/ManageSubjectsPage";
+import ManageUniversitiesPage from "./pages/admin/ManageUniversitiesPage";
+import ManageDepartmentsPage from "./pages/admin/ManageDepartmentsPage";
+import AdminProfilePage from "./pages/admin/AdminProfilePage";
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -37,7 +46,7 @@ function App() {
 
   useEffect(() => {
     function handleForbidden() {
-      setPermissionMessage("You do not have permission.");
+      setPermissionMessage(PERMISSION_DENIED_MESSAGE);
     }
 
     window.addEventListener("auth:forbidden", handleForbidden);
@@ -63,6 +72,10 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/resend-verification" element={<ResendVerificationPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
           <Route path="/support" element={<DonationPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -89,8 +102,14 @@ function App() {
             <Route path="/admin/upload" element={<AdminUploadPage />} />
             <Route path="/admin/questions" element={<ManageQuestionsPage />} />
             <Route path="/admin/subjects" element={<ManageSubjectsPage />} />
+            <Route path="/admin/profile" element={<AdminProfilePage />} />
 
             <Route path="/admin/exams" element={<UploadPage />} />
+          </Route>
+
+          <Route element={<SuperAdminRoute />}>
+            <Route path="/admin/universities" element={<ManageUniversitiesPage />} />
+            <Route path="/admin/departments" element={<ManageDepartmentsPage />} />
           </Route>
         </Routes>
       </div>

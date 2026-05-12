@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { APP_NAME } from "../config/app";
 import Button from "./ui/Button";
+import { isSuperAdminRole } from "../utils/auth";
 
 const publicNavItems = [
   { to: "/#features", label: "Features" },
@@ -33,6 +34,12 @@ const adminNavItems = [
   { to: "/admin/subjects", label: "Subjects" },
   { to: "/support", label: "Support" },
   { to: "/feedback", label: "Feedback" },
+  { to: "/admin/profile", label: "Profile" },
+];
+
+const superAdminNavItems = [
+  { to: "/admin/universities", label: "Universities" },
+  { to: "/admin/departments", label: "Departments" },
 ];
 
 function navClass({ isActive }) {
@@ -56,13 +63,26 @@ function Brand({ onClick }) {
   );
 }
 
+function getRoleLabel(role, isAdmin) {
+  if (isSuperAdminRole(role)) {
+    return "Super Admin";
+  }
+
+  return isAdmin ? "Sub Admin" : "Student";
+}
+
 function Navbar() {
-  const { isAuthenticated, isAdmin, logout, user } = useAuth();
+  const { isAuthenticated, isAdmin, isSuperAdmin, logout, role, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isPublicMenuOpen, setIsPublicMenuOpen] = useState(false);
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
-  const navItems = !isAuthenticated ? publicNavItems : isAdmin ? adminNavItems : studentNavItems;
+  const navItems = !isAuthenticated
+    ? publicNavItems
+    : isAdmin
+      ? [...adminNavItems.slice(0, 4), ...(isSuperAdmin ? superAdminNavItems : []), ...adminNavItems.slice(4)]
+      : studentNavItems;
+  const roleLabel = getRoleLabel(role, isAdmin);
 
   function handleLogout() {
     setIsAppMenuOpen(false);
@@ -210,9 +230,11 @@ function Navbar() {
           <div className="border-t border-slate-100 px-4 pb-4">
             <div className="grid gap-2 pt-3">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isAdmin ? "Admin" : "Student"}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {roleLabel}
+                </p>
                 <p className="mt-1 break-words text-sm font-semibold text-slate-950">
-                  {user?.full_name || user?.email || (isAdmin ? "Admin" : "Student")}
+                  {user?.full_name || user?.email || roleLabel}
                 </p>
               </div>
               {navItems.map((item) => (
@@ -237,9 +259,11 @@ function Navbar() {
         <Brand onClick={handleBrandClick} />
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{isAdmin ? "Admin" : "Student"}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {roleLabel}
+          </p>
           <p className="mt-2 truncate text-sm font-semibold text-slate-950">
-            {user?.full_name || user?.email || (isAdmin ? "Admin" : "Student")}
+            {user?.full_name || user?.email || roleLabel}
           </p>
           {user?.email && <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>}
         </div>
