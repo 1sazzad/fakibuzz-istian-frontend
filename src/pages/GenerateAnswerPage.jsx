@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { Link, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { apiEndpoints } from "../api/api";
+import { apiEndpoints, getAnswerBuilderErrorKind } from "../api/api";
 import { Badge, Button, Card, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, isMissingStudentScopeError } from "../utils/auth";
 
@@ -20,6 +20,7 @@ const MAX_QUESTION_LENGTH = 2000;
 const MAX_DIAGRAM_REFERENCE_LENGTH = 500;
 const MAX_DIAGRAM_DESCRIPTION_LENGTH = 2000;
 const MAX_FORMULA_LATEX_LENGTH = 5000;
+const ANSWER_BUILDING_WARNING_DELAY_MS = 15000;
 
 const RETRIEVAL_SOURCE_LABELS = {
   chroma: "Chroma context",
@@ -96,19 +97,19 @@ function getQuotaFromError(error) {
   return error.response?.data?.quota || error.data?.quota || null;
 }
 
-function getQuotaErrorMessage(error) {
-  const quota = getQuotaFromError(error);
-  if (!quota) {
-    return "";
+function getAnswerBuilderErrorMessage(error) {
+  switch (getAnswerBuilderErrorKind(error)) {
+    case "timeout":
+      return "Your answer is taking longer than usual. Please wait a little and try again.";
+    case "rate-limit":
+      return "Many students are using FakiBuzz right now. Please wait a little while and try again.";
+    case "network":
+      return "Connection issue detected. Please check your internet and try again.";
+    case "server":
+    case "unknown":
+    default:
+      return "Something went wrong while preparing your answer. Please try again.";
   }
-
-  const used = Number(quota.used ?? quota.limit ?? 0);
-  const limit = Number(quota.limit ?? used);
-  if (quota.period === "monthly") {
-    return `Monthly AI limit reached. You have used ${used}/${limit} free AI answers this month.`;
-  }
-
-  return getErrorMessage(error, "AI answer quota exceeded.");
 }
 
 function normalizeRelatedQuestions(payload) {
@@ -119,6 +120,7 @@ function normalizeRelatedQuestions(payload) {
 function GenerateAnswerPage() {
   const { user } = useAuth();
   const location = useLocation();
+  const loadingWarningTimerRef = useRef(null);
   const [question, setQuestion] = useState(() => location.state?.question || "");
   const [subjectCode, setSubjectCode] = useState(() => location.state?.subject_code || "");
   const [answerType, setAnswerType] = useState("5_mark");
@@ -135,6 +137,22 @@ function GenerateAnswerPage() {
   const [message, setMessage] = useState("Ask a question and generate a simple answer.");
   const [isError, setIsError] = useState(false);
   const [missingScope, setMissingScope] = useState(false);
+  const [showLongLoadingWarning, setShowLongLoadingWarning] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (loadingWarningTimerRef.current) {
+        clearTimeout(loadingWarningTimerRef.current);
+      }
+    };
+  }, []);
+
+  function clearLoadingWarningTimer() {
+    if (loadingWarningTimerRef.current) {
+      clearTimeout(loadingWarningTimerRef.current);
+      loadingWarningTimerRef.current = null;
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -169,10 +187,15 @@ function GenerateAnswerPage() {
     return () => {
       active = false;
     };
-  }, [subjectCode]);
+  }, [subjectCode, user?.university_id, user?.department_id]);
 
   async function handleGenerateAnswer(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
+
+    if (loading) {
+      return;
+    }
+
     setMissingScope(false);
 
     if (!question.trim() || !subjectCode.trim()) {
@@ -220,11 +243,17 @@ function GenerateAnswerPage() {
     }
 
     try {
+      clearLoadingWarningTimer();
       setLoading(true);
+      setShowLongLoadingWarning(false);
       setAnswer("");
       setAnswerResult(null);
       setIsError(false);
-      setMessage("Generating answer using related stored questions...");
+      setMessage("");
+
+      loadingWarningTimerRef.current = setTimeout(() => {
+        setShowLongLoadingWarning(true);
+      }, ANSWER_BUILDING_WARNING_DELAY_MS);
 
       const response = await apiEndpoints.generateAnswer({
         question: question.trim(),
@@ -245,15 +274,19 @@ function GenerateAnswerPage() {
       setMessage("Answer generated successfully.");
     } catch (error) {
       console.error(error);
-      const quotaErrorMessage = getQuotaErrorMessage(error);
+      const friendlyMessage = isMissingStudentScopeError(error)
+        ? MISSING_STUDENT_SCOPE_MESSAGE
+        : getAnswerBuilderErrorMessage(error);
       setAnswer("");
       setAnswerResult(null);
       setQuota(getQuotaFromError(error));
       setIsError(true);
       setMissingScope(isMissingStudentScopeError(error));
-      setMessage(quotaErrorMessage || getErrorMessage(error, "The backend could not generate an answer for this request."));
+      setMessage(friendlyMessage);
     } finally {
+      clearLoadingWarningTimer();
       setLoading(false);
+      setShowLongLoadingWarning(false);
     }
   }
 
@@ -380,13 +413,30 @@ function GenerateAnswerPage() {
           </datalist>
 
           <div className="mt-4">
-            <ErrorMessage tone={isError ? "error" : "info"}>{message}</ErrorMessage>
-            {missingScope && (
-              <div className="mt-3">
-                <Button as={Link} to="/profile" variant="secondary">
-                  Go to profile
-                </Button>
-              </div>
+            {loading ? (
+              <ErrorMessage tone="info">
+                {showLongLoadingWarning
+                  ? "Preparing your answer...\nThis is taking longer than expected due to high demand."
+                  : "Preparing your answer..."}
+              </ErrorMessage>
+            ) : (
+              <>
+                <ErrorMessage tone={isError ? "error" : "info"}>{message}</ErrorMessage>
+                {isError && !missingScope && (
+                  <div className="mt-3">
+                    <Button type="button" onClick={handleGenerateAnswer} variant="secondary">
+                      Retry
+                    </Button>
+                  </div>
+                )}
+                {missingScope && (
+                  <div className="mt-3">
+                    <Button as={Link} to="/profile" variant="secondary">
+                      Go to profile
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

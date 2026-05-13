@@ -3,6 +3,41 @@ import axios from "axios";
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 export const RATE_LIMIT_MESSAGE = "Too many requests. Please try again later.";
 
+export function getApiStatus(error) {
+  return error?.response?.status ?? error?.status ?? null;
+}
+
+export function isApiTimeoutError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.code === "ECONNABORTED" || message.includes("timeout");
+}
+
+export function isApiNetworkError(error) {
+  return error?.code === "ERR_NETWORK" || (!error?.response && !isApiTimeoutError(error));
+}
+
+export function getAnswerBuilderErrorKind(error) {
+  const status = getApiStatus(error);
+
+  if (isApiTimeoutError(error) || status === 504) {
+    return "timeout";
+  }
+
+  if (isApiNetworkError(error)) {
+    return "network";
+  }
+
+  if (status === 429 || status === 503) {
+    return "rate-limit";
+  }
+
+  if (status === 500 || status === 502) {
+    return "server";
+  }
+
+  return "unknown";
+}
+
 const API = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
