@@ -425,7 +425,7 @@ function SuggestionsPage() {
       />
 
       <Card>
-        <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr]">
+        <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-4">
           <label className="space-y-2 text-sm font-medium text-slate-700">
             Subject
             {subjects.length > 0 ? (
@@ -457,7 +457,19 @@ function SuggestionsPage() {
             </select>
           </label>
 
-          <div className="flex flex-col gap-2 sm:flex-row lg:col-span-3">
+          <label className="space-y-2 text-sm font-medium text-slate-700">
+            Number of Suggestions
+            <select value={topK} onChange={(e) => setTopK(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="50">50</option>
+            </select>
+          </label>
+
+          <div className="flex flex-col gap-2 sm:flex-row lg:col-span-4">
             <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Loading..." : "Get Suggestions"}
             </Button>
