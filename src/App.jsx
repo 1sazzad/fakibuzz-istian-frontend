@@ -105,16 +105,15 @@ function App() {
           <Route path="/jobs/:jobId" element={<JobStatusPage />} />
 
           <Route element={<ProtectedRoute />}>
-            {/* Consolidated student navigation for MVP. Redirect legacy pages to /subjects. */}
             <Route path="/dashboard" element={<Navigate to="/subjects" replace />} />
             <Route path="/subjects" element={<QuestionsPage />} />
-            <Route path="/search" element={<Navigate to="/subjects" replace />} />
+            <Route path="/search" element={<SimilarQuestionsPage />} />
             <Route path="/suggestions" element={<SuggestionsPage />} />
             <Route path="/generate-answer" element={<GenerateAnswerPage />} />
-            <Route path="/analysis" element={<Navigate to="/subjects" replace />} />
+            <Route path="/analysis" element={<TopicsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
 
-            <Route path="/predict" element={<Navigate to="/subjects" replace />} />
+            <Route path="/predict" element={<PredictionsPage />} />
             <Route path="/answers" element={<GenerateAnswerPage />} />
           </Route>
 

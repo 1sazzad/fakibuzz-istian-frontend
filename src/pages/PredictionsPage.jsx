@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeSubjects(payload) {
@@ -36,11 +36,13 @@ function PredictionsPage() {
   const [predictions, setPredictions] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const { user } = useAuth();
+  const location = useLocation();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   const navigate = useNavigate();
+  const initialSubjectCode = String(location.state?.subject_code || "").trim();
 
   async function loadPredictionData(subjectCode) {
     return apiEndpoints.getSubjectPrediction(subjectCode);
@@ -63,12 +65,13 @@ function PredictionsPage() {
         const subjectList = normalizeSubjects(response.data);
         setSubjects(subjectList);
 
-        if (subjectList.length === 0) {
+        const subjectCode = initialSubjectCode || subjectList[0]?.subject_code || "";
+
+        if (!subjectCode) {
           setMessage("Subject list is unavailable. Enter a subject code manually to load predictions.");
           return;
         }
 
-        const subjectCode = subjectList[0].subject_code;
         setSelectedSubject(subjectCode);
 
         try {
@@ -187,7 +190,7 @@ function PredictionsPage() {
         eyebrow="Prediction engine"
         title="Rank likely future questions by confidence"
         description="View dynamic confidence scores from approved analysis and jump straight into answer practice."
-        actions={<Button onClick={() => navigate("/answers")}>Open answer builder</Button>}
+        actions={<Button onClick={() => navigate("/answers", { state: { subject_code: selectedSubject } })}>Open answer builder</Button>}
       />
 
         <Card>

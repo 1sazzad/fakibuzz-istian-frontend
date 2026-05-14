@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeResults(payload) {
@@ -10,6 +10,7 @@ function normalizeResults(payload) {
 
 function SimilarQuestionsPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [subjects, setSubjects] = useState([]);
   const [query, setQuery] = useState("Explain SEO");
   const [subjectCode, setSubjectCode] = useState("");
@@ -20,6 +21,7 @@ function SimilarQuestionsPage() {
   const [message, setMessage] = useState("Run a search to see similar questions from the database.");
 
   const navigate = useNavigate();
+  const initialSubjectCode = String(location.state?.subject_code || "").trim();
 
   useEffect(() => {
     let active = true;
@@ -36,8 +38,12 @@ function SimilarQuestionsPage() {
 
         const subjectList = response.data?.subjects || [];
         setSubjects(subjectList);
-        if (subjectList.length > 0) {
+        if (initialSubjectCode) {
+          setSubjectCode(initialSubjectCode);
+        } else if (subjectList.length > 0) {
           setSubjectCode(subjectList[0].subject_code);
+        } else {
+          setMessage("Select a subject code to narrow semantic search.");
         }
       })
       .catch((error) => {
@@ -93,7 +99,7 @@ function SimilarQuestionsPage() {
         eyebrow="Semantic search"
         title="Find similar questions from the vector store"
         description="Search stored question embeddings with a natural-language query and narrow results by subject."
-        actions={<Button onClick={() => navigate("/analysis")}>View analysis</Button>}
+        actions={<Button onClick={() => navigate("/analysis", { state: { subject_code: subjectCode } })}>View analysis</Button>}
       />
 
         <Card as="form" onSubmit={fetchSimilarQuestions} className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">

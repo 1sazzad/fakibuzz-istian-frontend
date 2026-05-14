@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 
 function normalizeSubjects(payload) {
@@ -53,12 +53,14 @@ function formatAppearedYears(value) {
 function TopicsPage() {
   const [subjects, setSubjects] = useState([]);
   const { user } = useAuth();
+  const location = useLocation();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
   const navigate = useNavigate();
+  const initialSubjectCode = String(location.state?.subject_code || "").trim();
 
   async function loadAnalysisData(subjectCode) {
     return apiEndpoints.getSubjectAnalysis(subjectCode);
@@ -81,12 +83,13 @@ function TopicsPage() {
         const subjectList = normalizeSubjects(response.data);
         setSubjects(subjectList);
 
-        if (subjectList.length === 0) {
+        const subjectCode = initialSubjectCode || subjectList[0]?.subject_code || "";
+
+        if (!subjectCode) {
           setMessage("Subject list is unavailable. Enter a subject code manually to load analysis.");
           return;
         }
 
-        const subjectCode = subjectList[0].subject_code;
         setSelectedSubject(subjectCode);
 
         try {
@@ -186,7 +189,7 @@ function TopicsPage() {
         eyebrow="Subject analysis"
         title="Understand repeated topics and exam patterns"
         description="View frequency, marks, appeared years, and sample questions for one subject."
-        actions={<Button onClick={() => navigate("/predict")}>View predictions</Button>}
+        actions={<Button onClick={() => navigate("/predict", { state: { subject_code: selectedSubject } })}>View predictions</Button>}
       />
 
         <Card>

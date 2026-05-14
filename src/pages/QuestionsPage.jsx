@@ -205,12 +205,6 @@ function QuestionsPage() {
           eyebrow="Subject discovery"
           title="Find published data by subject code or name"
           description="Search subjects first, then browse previous-year questions, topic summaries, and prediction availability."
-          actions={
-            <>
-              <Button type="button" onClick={() => navigate("/search")}>Semantic search</Button>
-              <Button type="button" variant="secondary" onClick={() => navigate("/analysis")}>View analysis</Button>
-            </>
-          }
         />
 
         <Card as="form" onSubmit={handleSearch} className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -351,7 +345,7 @@ function QuestionsPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
-                  onClick={() => navigate("/search")}
+                  onClick={() => navigate("/search", { state: { subject_code: selectedSubject } })}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50"
                 >
                   <p className="text-sm font-semibold text-slate-950">Semantic search</p>
@@ -359,7 +353,7 @@ function QuestionsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/analysis")}
+                  onClick={() => navigate("/analysis", { state: { subject_code: selectedSubject } })}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50"
                 >
                   <p className="text-sm font-semibold text-slate-950">Topic analysis</p>
@@ -367,7 +361,7 @@ function QuestionsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/predict")}
+                  onClick={() => navigate("/predict", { state: { subject_code: selectedSubject } })}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50"
                 >
                   <p className="text-sm font-semibold text-slate-950">Predictions</p>
@@ -375,7 +369,7 @@ function QuestionsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/answers")}
+                  onClick={() => navigate("/answers", { state: { subject_code: selectedSubject } })}
                   className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-indigo-200 hover:bg-indigo-50"
                 >
                   <p className="text-sm font-semibold text-slate-950">Answer help</p>
