@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import ResendVerificationForm from "../components/ResendVerificationForm";
-import { Button, Card, ErrorMessage } from "../components/ui";
+import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
 import { getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
 
 function AdminLoginPage() {
@@ -80,13 +80,12 @@ function AdminLoginPage() {
 
           <label className="block text-sm font-medium text-slate-700">
             Password
-            <input
-              type="password"
+            <PasswordInput
               value={form.password}
               onChange={(event) => updateField("password", event.target.value)}
               required
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Admin password"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 

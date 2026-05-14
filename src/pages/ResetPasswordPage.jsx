@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { resetPassword } from "../api/authApi";
-import { Button, Card, ErrorMessage } from "../components/ui";
+import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
 import { getApiErrorMessage, PASSWORD_PATTERN, PASSWORD_VALIDATION_MESSAGE } from "../utils/auth";
 
 function ResetPasswordPage() {
@@ -63,26 +63,24 @@ function ResetPasswordPage() {
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block text-sm font-medium text-slate-700">
             New password
-            <input
-              type="password"
+            <PasswordInput
               value={form.new_password}
               onChange={(event) => updateField("new_password", event.target.value)}
               required
               minLength={8}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="New password"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
             Confirm password
-            <input
-              type="password"
+            <PasswordInput
               value={form.confirm_password}
               onChange={(event) => updateField("confirm_password", event.target.value)}
               required
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Repeat new password"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 

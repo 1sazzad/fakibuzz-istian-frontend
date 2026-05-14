@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getUniversities, getUniversityDepartments } from "../api/authApi";
 import { useAuth } from "../context/useAuth";
-import { Button, Card, ErrorMessage } from "../components/ui";
+import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
 import { buildInstitutionMetadata } from "../utils/institution";
 import {
   getApiErrorMessage,
@@ -364,26 +364,24 @@ function RegisterPage() {
 
           <label className="block text-sm font-medium text-slate-700">
             Password
-            <input
-              type="password"
+            <PasswordInput
               value={form.password}
               onChange={(event) => updateField("password", event.target.value)}
               required
               minLength={8}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Choose a password"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
             Confirm password
-            <input
-              type="password"
+            <PasswordInput
               value={form.confirm_password}
               onChange={(event) => updateField("confirm_password", event.target.value)}
               required
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="Repeat password"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 

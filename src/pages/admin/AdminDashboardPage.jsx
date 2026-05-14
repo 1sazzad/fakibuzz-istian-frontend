@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { createAdminUser } from "../../api/authApi";
 import { apiEndpoints } from "../../api/api";
 import { useAuth } from "../../context/useAuth";
-import { Badge, Button, Card, ErrorMessage, PageHeader, ResponsiveContainer } from "../../components/ui";
+import { Badge, Button, Card, ErrorMessage, PageHeader, PasswordInput, ResponsiveContainer } from "../../components/ui";
 import { buildInstitutionMetadata } from "../../utils/institution";
 import {
   getApiErrorMessage,
@@ -402,7 +402,7 @@ function AdminDashboardPage() {
             <input aria-label="Full name" value={adminForm.full_name} onChange={(event) => updateAdminField("full_name", event.target.value)} required placeholder="Full name" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
             <input aria-label="Email" type="email" value={adminForm.email} onChange={(event) => updateAdminField("email", event.target.value)} required placeholder="Email" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
             <input aria-label="Phone number" value={adminForm.phone_number} onChange={(event) => updateAdminField("phone_number", event.target.value)} required placeholder="Phone number" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-            <input aria-label="Password" type="password" value={adminForm.password} onChange={(event) => updateAdminField("password", event.target.value)} required minLength={8} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+            <PasswordInput ariaLabel="Password" value={adminForm.password} onChange={(event) => updateAdminField("password", event.target.value)} required minLength={8} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
             <input aria-label="Institution ID" value={adminForm.institution_id} onChange={(event) => updateAdminField("institution_id", event.target.value)} placeholder="Institution ID (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
             <input aria-label="Institution name" value={adminForm.institution_name} onChange={(event) => updateAdminField("institution_name", event.target.value)} placeholder="Institution name (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
             <input aria-label="Department" value={adminForm.department} onChange={(event) => updateAdminField("department", event.target.value)} placeholder="Department (optional)" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
