@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import BrandLogo from "../components/BrandLogo";
 import { Badge, Card, ErrorMessage, PageHeader, ResponsiveContainer } from "../components/ui";
 
 const workflows = [
@@ -47,6 +48,9 @@ function DashboardPage() {
 
   return (
     <ResponsiveContainer>
+      <div className="mb-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm shadow-slate-200/60">
+        <BrandLogo imageClassName="h-8 w-8" textClassName="text-sm font-semibold tracking-tight text-slate-950" />
+      </div>
       <PageHeader
         eyebrow="Learner Dashboard"
         title={`Welcome, ${user?.full_name || "Learner"}`}

@@ -105,20 +105,9 @@ export function AuthProvider({ children }) {
   const register = useCallback(
     async (payload) => {
       const response = await registerUser(payload);
-      const data = response.data || {};
-
-      if (data.access_token) {
-        const session = saveAuthSession(data);
-        setToken(session.token);
-        setRole(session.role);
-        setUser(session.user);
-        const refreshedUser = await refreshUser();
-        return refreshedUser || session.user || { role: session.role };
-      }
-
-      return data;
+      return response.data || {};
     },
-    [refreshUser],
+    [],
   );
 
   useEffect(() => {

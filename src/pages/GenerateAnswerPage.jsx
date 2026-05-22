@@ -6,8 +6,10 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { apiEndpoints, getAnswerBuilderErrorKind } from "../api/api";
+import AnswerWarningBanner from "../components/common/AnswerWarningBanner";
 import { Badge, Button, Card, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, isMissingStudentScopeError } from "../utils/auth";
+import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
 const ANSWER_TYPE_MARKS = {
   "2_mark": 2,
@@ -40,6 +42,33 @@ const KATEX_OPTIONS = {
   strict: false,
   trust: false,
 };
+
+const WARNING_APPLICABLE_SUBJECT_KEYWORDS = [
+  "math",
+  "mathematics",
+  "physics",
+  "engineering",
+  "statistic",
+  "programming",
+  "problem solving",
+  "algorithm",
+  "coding",
+  "computer science",
+  "calculus",
+  "numerical",
+];
+
+const PURE_THEORY_SUBJECT_KEYWORDS = [
+  "history",
+  "business",
+  "management",
+  "marketing",
+  "human resource",
+  "sociology",
+  "philosophy",
+  "literature",
+  "organizational behavior",
+];
 
 const markdownComponents = {
   h2: (props) => <h2 className="mt-7 border-b border-slate-200 pb-2 text-xl font-semibold leading-snug text-slate-950 first:mt-0" {...props} />,
@@ -102,7 +131,7 @@ function getAnswerBuilderErrorMessage(error) {
     case "timeout":
       return "Your answer is taking longer than usual. Please wait a little and try again.";
     case "rate-limit":
-      return "Many students are using FakiBuzz right now. Please wait a little while and try again.";
+      return "Many students are using Q Arena right now. Please wait a little while and try again.";
     case "network":
       return "Connection issue detected. Please check your internet and try again.";
     case "server":
@@ -115,6 +144,83 @@ function getAnswerBuilderErrorMessage(error) {
 function normalizeRelatedQuestions(payload) {
   const items = payload?.related_questions || payload?.related_previous_questions || [];
   return Array.isArray(items) ? items : [];
+}
+
+function buildSubjectMetadataText(answerResult, subjectFromList) {
+  return [
+    answerResult?.subject_type,
+    answerResult?.subject_category,
+    answerResult?.subject_name,
+    answerResult?.subject_code,
+    answerResult?.topic_used,
+    subjectFromList?.subject_type,
+    subjectFromList?.subject_category,
+    subjectFromList?.subject_name,
+    subjectFromList?.subject_code,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function matchesAnyKeyword(text, keywords) {
+  if (!text) {
+    return false;
+  }
+  return keywords.some((keyword) => text.includes(keyword));
+}
+
+function answerLooksTechnical(answerText) {
+  if (!answerText || !String(answerText).trim()) {
+    return false;
+  }
+
+  const text = String(answerText);
+  const lowerText = text.toLowerCase();
+
+  const hasLatex =
+    /\$\$[\s\S]*?\$\$/.test(text) ||
+    /\$[^$\n]+\$/.test(text) ||
+    /\\\([\s\S]*?\\\)/.test(text) ||
+    /\\\[[\s\S]*?\\\]/.test(text) ||
+    /\\(frac|sum|sqrt|alpha|beta|gamma|theta|int|partial|begin\{(?:matrix|bmatrix|pmatrix|vmatrix)\})/.test(text);
+
+  const hasEquationOrCalculation =
+    /\b\d+(?:\.\d+)?\s*(?:\+|-|\*|x|×|\/|=|%)\s*\d+(?:\.\d+)?\b/.test(lowerText) ||
+    /\b(?:therefore|hence|solve|result|computed?|calculation|substitute)\b/.test(lowerText);
+
+  const hasMatrixSignals =
+    /\b(matrix|matrices|determinant|eigenvalue|vector)\b/.test(lowerText) ||
+    /\\begin\{(?:matrix|bmatrix|pmatrix|vmatrix)\}/.test(text);
+
+  const hasIntegralOrDerivativeSignals =
+    /\\int|∫/.test(text) ||
+    /\b(derivative|differentiate|integration|integral|d\/dx|dy\/dx|partial derivative)\b/.test(lowerText) ||
+    /\\frac\{d\}/.test(text);
+
+  const hasCodeBlockSignals =
+    /```[\s\S]*?```/.test(text) ||
+    /`[^`\n]+`/.test(text) ||
+    /\b(function|def|class|return|for\s*\(|while\s*\(|if\s*\(|console\.log|public\s+static|printf)\b/.test(lowerText);
+
+  return hasLatex || hasEquationOrCalculation || hasMatrixSignals || hasIntegralOrDerivativeSignals || hasCodeBlockSignals;
+}
+
+function shouldShowAnswerWarning({ answerText, answerResult, selectedSubject }) {
+  const metadataText = buildSubjectMetadataText(answerResult, selectedSubject);
+  const hasMetadata = Boolean(metadataText.trim());
+
+  if (hasMetadata) {
+    if (matchesAnyKeyword(metadataText, PURE_THEORY_SUBJECT_KEYWORDS)) {
+      return false;
+    }
+
+    if (matchesAnyKeyword(metadataText, WARNING_APPLICABLE_SUBJECT_KEYWORDS)) {
+      return true;
+    }
+  }
+
+  return answerLooksTechnical(answerText);
 }
 
 function GenerateAnswerPage() {
@@ -167,7 +273,7 @@ function GenerateAnswerPage() {
           return;
         }
 
-        const subjectList = response.data?.subjects || [];
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
 
         if (!subjectCode && subjectList.length > 0) {
@@ -291,12 +397,18 @@ function GenerateAnswerPage() {
   }
 
   const relatedQuestions = normalizeRelatedQuestions(answerResult);
+  const selectedSubject = subjects.find((subject) => subject.subject_code === (answerResult?.subject_code || subjectCode));
   const retrievalSourceLabel = answerResult?.retrieval_source
     ? RETRIEVAL_SOURCE_LABELS[answerResult.retrieval_source] || answerResult.retrieval_source
     : null;
   const fallbackReasonLabel = answerResult?.fallback_reason
     ? FALLBACK_REASON_LABELS[answerResult.fallback_reason] || "Fallback context used"
     : null;
+  const showAnswerWarning = shouldShowAnswerWarning({
+    answerText: answer,
+    answerResult,
+    selectedSubject,
+  });
 
   return (
     <ResponsiveContainer>
@@ -406,8 +518,8 @@ function GenerateAnswerPage() {
 
           <datalist id="subject-list">
             {subjects.map((subject) => (
-              <option key={subject.subject_code} value={subject.subject_code}>
-                {subject.subject_name}
+              <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                {formatSubjectLabel(subject)}
               </option>
             ))}
           </datalist>
@@ -450,7 +562,10 @@ function GenerateAnswerPage() {
           )}
 
           {answer && (
-            <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+            <div className="mt-6 space-y-4">
+              {showAnswerWarning && <AnswerWarningBanner />}
+
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold text-slate-950">Generated answer</h2>
                 <Badge tone="indigo">{(answerResult?.answer_type || answerType).replace("_", " ")}</Badge>
@@ -551,6 +666,7 @@ function GenerateAnswerPage() {
                   </div>
                 </details>
               )}
+            </div>
             </div>
           )}
         </Card>

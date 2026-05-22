@@ -5,7 +5,7 @@ const sections = [
   {
     title: "Platform usage",
     description:
-      "FakiBuzz is built to help students search previous questions, analyze topics, and prepare more efficiently. Use the platform for lawful academic preparation only.",
+      "Q Arena is built to help students search previous questions, analyze topics, and prepare more efficiently. Use the platform for lawful academic preparation only.",
   },
   {
     title: "User responsibilities",
@@ -20,7 +20,7 @@ const sections = [
   {
     title: "Disclaimer",
     description:
-      "FakiBuzz is provided as an educational support tool. We do not guarantee uninterrupted service, complete data accuracy, or specific academic results.",
+      "Q Arena is provided as an educational support tool. We do not guarantee uninterrupted service, complete data accuracy, or specific academic results.",
   },
   {
     title: "Account rules",
@@ -37,7 +37,7 @@ function TermsOfServicePage() {
           <PageHeader
             eyebrow="Legal"
             title="Terms of Service"
-            description="Simple rules and expectations for using FakiBuzz responsibly."
+            description="Simple rules and expectations for using Q Arena responsibly."
           />
 
           <div className="grid gap-4">

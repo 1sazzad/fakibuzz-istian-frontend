@@ -8,7 +8,7 @@ function ContactPage() {
       <ResponsiveContainer>
         <PageHeader
           eyebrow="Contact"
-          title="Contact FakiBuzz"
+          title="Contact Q Arena"
           description="Reach out if you cannot find your subject, want to submit previous question papers, or need platform support."
         />
 

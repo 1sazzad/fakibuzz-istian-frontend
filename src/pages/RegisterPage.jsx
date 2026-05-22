@@ -1,9 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getUniversities, getUniversityDepartments } from "../api/authApi";
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/useAuth";
 import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
-import { buildInstitutionMetadata } from "../utils/institution";
+import {
+  getLookupId,
+  getLookupLabel,
+  normalizeDepartments,
+  normalizeUniversities,
+} from "../utils/academicLookups";
+import {
+  buildAcademicProfilePayload,
+  CLASS_LEVEL_OPTIONS,
+  CURRICULUM_OPTIONS,
+  normalizeAcademicLevel,
+  STREAM_GROUP_OPTIONS,
+  VISIBLE_ACADEMIC_LEVEL_OPTIONS,
+} from "../utils/academicProfile";
 import {
   getApiErrorMessage,
   PASSWORD_PATTERN,
@@ -12,33 +26,22 @@ import {
   PHONE_VALIDATION_MESSAGE,
 } from "../utils/auth";
 
-function isActiveDepartment(department) {
-  if (department.is_active !== undefined) {
-    return Boolean(department.is_active);
-  }
-
-  if (department.active !== undefined) {
-    return Boolean(department.active);
-  }
-
-  if (department.status !== undefined) {
-    return String(department.status).toLowerCase() === "active";
-  }
-
-  return true;
-}
-
 function RegisterPage() {
   const { register } = useAuth();
   const [form, setForm] = useState({
     full_name: "",
     email: "",
     phone_number: "",
+    academic_level: "university",
+    institution_type: "university",
+    curriculum: "university_specific",
+    stream_group: "",
+    class_level: "",
     university_id: "",
-    college_institute_school: "",
     department_id: "",
     program: "",
-    year_semester: "",
+    batch_session: "",
+    institution_name: "",
     password: "",
     confirm_password: "",
     terms_accepted: false,
@@ -53,22 +56,39 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const academicLevel = normalizeAcademicLevel(form.academic_level) || "university";
+
+  const isUniversityLevel = academicLevel === "university";
+  const isSecondaryLevel = academicLevel === "ssc" || academicLevel === "hsc";
+  const isAcademicScopeReady =
+    (isUniversityLevel && Boolean(form.university_id && form.department_id)) ||
+    (isSecondaryLevel && Boolean(form.curriculum && form.stream_group && form.class_level));
+
+  const academicLevelOptions = VISIBLE_ACADEMIC_LEVEL_OPTIONS;
+
   useEffect(() => {
     let isMounted = true;
 
     async function loadUniversities() {
+      if (!isUniversityLevel) {
+        setUniversities([]);
+        setUniversitiesError("");
+        setUniversitiesLoading(false);
+        return;
+      }
+
       setUniversitiesLoading(true);
       setUniversitiesError("");
 
       try {
         const response = await getUniversities();
-        const data = response.data?.universities || response.data?.items || response.data || [];
         if (isMounted) {
-          setUniversities(Array.isArray(data) ? data : []);
+          setUniversities(normalizeUniversities(response.data));
         }
       } catch (err) {
         if (isMounted) {
           setUniversitiesError(getApiErrorMessage(err, "Unable to load universities."));
+          setUniversities([]);
         }
       } finally {
         if (isMounted) {
@@ -81,13 +101,13 @@ function RegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isUniversityLevel]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadDepartments() {
-      if (!form.university_id) {
+      if (!isUniversityLevel || !form.university_id) {
         setDepartments([]);
         setDepartmentsError("");
         setDepartmentsLoading(false);
@@ -100,15 +120,13 @@ function RegisterPage() {
 
       try {
         const response = await getUniversityDepartments(form.university_id);
-        const data = response.data?.departments || response.data?.items || response.data || [];
-        const activeDepartments = Array.isArray(data) ? data.filter(isActiveDepartment) : [];
 
         if (isMounted) {
-          setDepartments(activeDepartments);
+          setDepartments(normalizeDepartments(response.data));
         }
-      } catch {
+      } catch (err) {
         if (isMounted) {
-          setDepartmentsError("Could not load departments. Please try again.");
+          setDepartmentsError(getApiErrorMessage(err, "Could not load departments. Please try again."));
           setDepartments([]);
         }
       } finally {
@@ -122,36 +140,54 @@ function RegisterPage() {
     return () => {
       isMounted = false;
     };
-  }, [form.university_id]);
+  }, [form.university_id, isUniversityLevel]);
 
   function updateField(field, value) {
+    if (field === "academic_level") {
+      const nextLevel = normalizeAcademicLevel(value) || "university";
+
+      setForm((current) => ({
+        ...current,
+        academic_level: nextLevel,
+        institution_type: nextLevel === "university" ? "university" : nextLevel === "ssc" ? "school" : "college",
+        curriculum: nextLevel === "university" ? "university_specific" : "national",
+        stream_group: "",
+        class_level: "",
+        university_id: "",
+        department_id: "",
+        program: "",
+        batch_session: "",
+        institution_name: "",
+      }));
+      setDepartments([]);
+      setDepartmentsError("");
+      return;
+    }
+
+    if (field === "university_id") {
+      setForm((current) => ({
+        ...current,
+        university_id: value,
+        department_id: "",
+      }));
+      setDepartments([]);
+      setDepartmentsError("");
+      return;
+    }
+
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   function handleUniversityChange(value) {
-    setForm((current) => ({
-      ...current,
-      university_id: value,
-      department_id: "",
-    }));
-    setDepartments([]);
-    setDepartmentsError("");
-  }
-
-  function getUniversityLabel(university) {
-    const name = university.university_name || university.name || "";
-    const shortName = university.short_name || "";
-    return shortName ? `${name} (${shortName})` : name;
-  }
-
-  function getDepartmentLabel(department) {
-    const name = department.department_name || department.name || "";
-    const shortName = department.short_name || "";
-    return shortName ? `${name} (${shortName})` : name;
+    updateField("university_id", value);
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setError("");
     setSuccess("");
@@ -160,15 +196,22 @@ function RegisterPage() {
       !form.full_name.trim() ||
       !form.email.trim() ||
       !form.phone_number.trim() ||
-      !form.university_id ||
-      !form.department_id ||
+      !academicLevel ||
       !form.password ||
       !form.confirm_password
     ) {
-      if (!form.university_id) {
+      if (!academicLevel) {
+        setError("Academic level is required.");
+      } else if (isUniversityLevel && !form.university_id) {
         setError("University is required.");
-      } else if (!form.department_id) {
+      } else if (isUniversityLevel && !form.department_id) {
         setError("Department is required.");
+      } else if (isSecondaryLevel && !form.curriculum) {
+        setError("Curriculum is required.");
+      } else if (isSecondaryLevel && !form.stream_group) {
+        setError("Group is required.");
+      } else if (isSecondaryLevel && !form.class_level) {
+        setError("Class level is required.");
       } else {
         setError("All fields are required.");
       }
@@ -207,32 +250,45 @@ function RegisterPage() {
     }
 
     try {
-      const selectedUniversity = universities.find((university) => String(university.id ?? university.university_id) === form.university_id);
-      const universityId = Number.isNaN(Number(form.university_id)) ? form.university_id : Number(form.university_id);
-      const departmentId = Number.isNaN(Number(form.department_id)) ? form.department_id : Number(form.department_id);
-      await register({
+      const academicPayload = buildAcademicProfilePayload({
+        academic_level: academicLevel,
+        institution_type: form.institution_type,
+        curriculum: form.curriculum,
+        stream_group: form.stream_group,
+        class_level: form.class_level,
+        university_id: form.university_id,
+        department_id: form.department_id,
+        program: form.program,
+        batch_session: form.batch_session,
+      });
+
+      if (isUniversityLevel && (!form.university_id || !form.department_id)) {
+        setError(!form.university_id ? "University is required." : "Department is required.");
+        setLoading(false);
+        return;
+      }
+
+      if (isSecondaryLevel && (!form.curriculum || !form.stream_group || !form.class_level)) {
+        if (!form.curriculum) {
+          setError("Curriculum is required.");
+        } else if (!form.stream_group) {
+          setError("Group is required.");
+        } else {
+          setError("Class level is required.");
+        }
+        setLoading(false);
+        return;
+      }
+
+      const data = await register({
         full_name: form.full_name.trim(),
         email: form.email.trim(),
         phone_number: form.phone_number.trim(),
-        university_id: universityId,
-        department_id: departmentId,
-        college_institute_school: form.college_institute_school.trim() || undefined,
-        college: form.college_institute_school.trim() || undefined,
-        program: form.program.trim() || undefined,
-        batch_session: form.year_semester.trim() || undefined,
-        year_semester: form.year_semester.trim() || undefined,
-        year: form.year_semester.trim() || undefined,
-        semester: form.year_semester.trim() || undefined,
-        terms_accepted: true,
-        ...buildInstitutionMetadata({
-          institution_id: String(form.university_id),
-          institution_name: selectedUniversity ? getUniversityLabel(selectedUniversity) : "",
-          program: form.program,
-          batch_session: form.year_semester,
-        }),
         password: form.password,
+        terms_accepted: true,
+        ...academicPayload,
       });
-      setSuccess("Account created successfully. You can now login.");
+      setSuccess(data?.message || "Account created successfully. Please verify your email.");
     } catch (err) {
       setError(getApiErrorMessage(err, "Registration failed. Email or phone number may already be used."));
     } finally {
@@ -244,12 +300,29 @@ function RegisterPage() {
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-2xl">
         <div>
+          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" />
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Learner Register</p>
           <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Create your account</h1>
-          <p className="mt-2 text-sm text-slate-500">Use your student details to start using FakiBuzz.</p>
+          <p className="mt-2 text-sm text-slate-500">Use your student details to start using Q Arena.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+              Academic level
+              <select
+                value={form.academic_level}
+                onChange={(event) => updateField("academic_level", event.target.value)}
+                required
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              >
+                {academicLevelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
           <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
             Full name
             <input
@@ -284,83 +357,139 @@ function RegisterPage() {
             />
           </label>
 
-          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-            University
-            <select
-              value={form.university_id}
-              onChange={(event) => handleUniversityChange(event.target.value)}
-              required
-              disabled={universitiesLoading}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
-            >
-              <option value="">{universitiesLoading ? "Loading universities..." : "Select university"}</option>
-              {universities.map((university) => {
-                const id = university.id ?? university.university_id;
-                return (
-                  <option key={id || getUniversityLabel(university)} value={id}>
-                    {getUniversityLabel(university)}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
+            {isUniversityLevel ? (
+              <>
+                <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+                  University
+                  <select
+                    value={form.university_id}
+                    onChange={(event) => handleUniversityChange(event.target.value)}
+                    required
+                    disabled={universitiesLoading}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    <option value="">{universitiesLoading ? "Loading universities..." : "Select university"}</option>
+                    {universities.map((university) => {
+                      const id = getLookupId(university);
+                      return (
+                        <option key={id || getLookupLabel(university)} value={id}>
+                          {getLookupLabel(university)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
 
-          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-            College / institute / school
-            <input
-              value={form.college_institute_school}
-              onChange={(event) => updateField("college_institute_school", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
-            />
-          </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Department
+                  <select
+                    value={form.department_id}
+                    onChange={(event) => updateField("department_id", event.target.value)}
+                    required
+                    disabled={!form.university_id || departmentsLoading || departments.length === 0}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
+                  >
+                    <option value="">
+                      {!form.university_id
+                        ? "Select university first"
+                        : departmentsLoading
+                          ? "Loading departments..."
+                          : "Select department"}
+                    </option>
+                    {departments.map((department) => {
+                      const id = getLookupId(department);
+                      return (
+                        <option key={id || getLookupLabel(department)} value={id}>
+                          {getLookupLabel(department)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Department
-            <select
-              value={form.department_id}
-              onChange={(event) => updateField("department_id", event.target.value)}
-              required
-              disabled={!form.university_id || departmentsLoading || departments.length === 0}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:text-slate-400"
-            >
-              <option value="">
-                {!form.university_id
-                  ? "Select university first"
-                  : departmentsLoading
-                    ? "Loading departments..."
-                    : "Select department"}
-              </option>
-              {departments.map((department) => {
-                const id = department.id ?? department.department_id;
-                return (
-                  <option key={id || getDepartmentLabel(department)} value={id}>
-                    {getDepartmentLabel(department)}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Program / degree
+                  <input
+                    value={form.program}
+                    onChange={(event) => updateField("program", event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    placeholder="Optional"
+                  />
+                </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Program / degree
-            <input
-              value={form.program}
-              onChange={(event) => updateField("program", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
-            />
-          </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Batch / session
+                  <input
+                    value={form.batch_session}
+                    onChange={(event) => updateField("batch_session", event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    placeholder="Optional"
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                <label className="block text-sm font-medium text-slate-700">
+                  Curriculum
+                  <select
+                    value={form.curriculum}
+                    onChange={(event) => updateField("curriculum", event.target.value)}
+                    required
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  >
+                    {CURRICULUM_OPTIONS.filter((option) => option.value !== "university_specific").map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Year / semester
-            <input
-              value={form.year_semester}
-              onChange={(event) => updateField("year_semester", event.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="Optional"
-            />
-          </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Group
+                  <select
+                    value={form.stream_group}
+                    onChange={(event) => updateField("stream_group", event.target.value)}
+                    required
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <option value="">Select group</option>
+                    {STREAM_GROUP_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700">
+                  Class level
+                  <select
+                    value={form.class_level}
+                    onChange={(event) => updateField("class_level", event.target.value)}
+                    required
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                  >
+                    <option value="">Select class level</option>
+                    {(academicLevel === "ssc" ? CLASS_LEVEL_OPTIONS.ssc : CLASS_LEVEL_OPTIONS.hsc).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
+                  Institution / school name
+                  <input
+                    value={form.institution_name}
+                    onChange={(event) => updateField("institution_name", event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+                    placeholder="Optional, not used for subject scoping"
+                  />
+                </label>
+              </>
+            )}
 
           <label className="block text-sm font-medium text-slate-700">
             Password
@@ -405,11 +534,13 @@ function RegisterPage() {
           <div className="sm:col-span-2">
             <ErrorMessage tone="warning">{universitiesError}</ErrorMessage>
             <ErrorMessage tone="warning">{departmentsError}</ErrorMessage>
-            <ErrorMessage tone="info">
-              {form.university_id && !departmentsLoading && !departmentsError && departments.length === 0
-                ? "No departments found for this university. Please contact support."
-                : ""}
-            </ErrorMessage>
+            {isUniversityLevel && (
+              <ErrorMessage tone="info">
+                {form.university_id && !departmentsLoading && !departmentsError && departments.length === 0
+                  ? "No departments found for this university. Please contact support."
+                  : ""}
+              </ErrorMessage>
+            )}
             <ErrorMessage>{error}</ErrorMessage>
             <ErrorMessage tone="success">{success}</ErrorMessage>
             {success && (
@@ -421,7 +552,7 @@ function RegisterPage() {
             )}
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full sm:col-span-2">
+          <Button type="submit" disabled={loading || !isAcademicScopeReady} className="w-full sm:col-span-2">
             {loading ? "Creating account..." : "Register"}
           </Button>
         </form>

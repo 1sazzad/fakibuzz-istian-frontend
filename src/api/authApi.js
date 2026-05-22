@@ -5,7 +5,10 @@ export function registerUser(data) {
 }
 
 export function loginUser(data) {
-  return API.post("/auth/login", data);
+  return API.post("/auth/login", {
+    email: data?.email?.trim() || "",
+    password: data?.password || "",
+  });
 }
 
 export function getCurrentUser() {

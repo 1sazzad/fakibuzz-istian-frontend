@@ -3,6 +3,8 @@ import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
 function normalizeResults(payload) {
   return payload?.results || payload?.matches || payload?.questions || payload?.data || [];
@@ -22,13 +24,12 @@ function SimilarQuestionsPage() {
 
   const navigate = useNavigate();
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
+  const academicProfileSignature = getAcademicProfileSignature(user);
 
   useEffect(() => {
     let active = true;
 
-    const params = { status: "published" };
-    if (user?.university_id) params.university_id = user.university_id;
-    if (user?.department_id) params.department_id = user.department_id;
+    const params = buildSubjectScopeParams(user, { status: "published" });
 
     apiEndpoints.getSubjects(params)
       .then((response) => {
@@ -36,7 +37,7 @@ function SimilarQuestionsPage() {
           return;
         }
 
-        const subjectList = response.data?.subjects || [];
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
         if (initialSubjectCode) {
           setSubjectCode(initialSubjectCode);
@@ -58,7 +59,7 @@ function SimilarQuestionsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [academicProfileSignature, initialSubjectCode, user]);
 
   async function fetchSimilarQuestions(event) {
     event.preventDefault();
@@ -122,8 +123,8 @@ function SimilarQuestionsPage() {
             >
               <option value="">All subjects</option>
               {subjects.map((subject) => (
-                <option key={subject.subject_code} value={subject.subject_code}>
-                  {subject.subject_code} - {subject.subject_name}
+                <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                  {formatSubjectLabel(subject)}
                 </option>
               ))}
             </select>

@@ -3,21 +3,13 @@ import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
-
-function normalizeSubjects(payload) {
-  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
-
-  return rawSubjects
-    .map((subject) => ({
-      subject_code: String(subject?.subject_code ?? subject?.code ?? subject?.subjectCode ?? "").trim(),
-      subject_name: String(subject?.subject_name ?? subject?.name ?? subject?.subjectName ?? "").trim(),
-    }))
-    .filter((subject) => Boolean(subject.subject_code));
-}
+import { getApiErrorMessage } from "../utils/auth";
+import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
+import { formatSuggestionScore, normalizePredictionResponse, normalizeSuggestionScore } from "../utils/suggestionLookups";
 
 function normalizePredictions(payload) {
-  const items = payload?.predictions || payload?.questions || payload?.items || payload?.suggestions || payload?.data || [];
-  return Array.isArray(items) ? items : [];
+  return normalizePredictionResponse(payload);
 }
 
 function getPredictionMessage(payload, fallback) {
@@ -43,6 +35,7 @@ function PredictionsPage() {
 
   const navigate = useNavigate();
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
+  const academicProfileSignature = getAcademicProfileSignature(user);
 
   async function loadPredictionData(subjectCode) {
     return apiEndpoints.getSubjectPrediction(subjectCode);
@@ -53,16 +46,14 @@ function PredictionsPage() {
 
     async function initialize() {
       try {
-        const params = { status: "published" };
-        if (user?.university_id) params.university_id = user.university_id;
-        if (user?.department_id) params.department_id = user.department_id;
+        const params = buildSubjectScopeParams(user, { status: "published" });
         const response = await apiEndpoints.getSubjects(params);
 
         if (!active) {
           return;
         }
 
-        const subjectList = normalizeSubjects(response.data);
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
 
         const subjectCode = initialSubjectCode || subjectList[0]?.subject_code || "";
@@ -85,14 +76,14 @@ function PredictionsPage() {
           console.error(error);
           if (active) {
             setPredictions([]);
-            setMessage(error.response?.data?.detail || "Subjects loaded, but prediction data could not be loaded for the selected subject.");
+            setMessage(getApiErrorMessage(error, "Subjects loaded, but prediction data could not be loaded for the selected subject."));
           }
         }
       } catch (error) {
         console.error(error);
         if (active) {
           setSubjects([]);
-          setMessage("Subject list could not be loaded. Enter a subject code manually.");
+          setMessage(getApiErrorMessage(error, "Subject list could not be loaded. Enter a subject code manually."));
         }
       } finally {
         if (active) {
@@ -106,7 +97,7 @@ function PredictionsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [academicProfileSignature, initialSubjectCode, user]);
 
   async function handleSubjectChange(event) {
     const subjectCode = event.target.value;
@@ -128,7 +119,7 @@ function PredictionsPage() {
     } catch (error) {
       console.error(error);
       setPredictions([]);
-      setMessage(error.response?.data?.detail || "Prediction lookup failed for this subject.");
+      setMessage(getApiErrorMessage(error, "Prediction lookup failed for this subject."));
     } finally {
       setLoading(false);
     }
@@ -156,20 +147,10 @@ function PredictionsPage() {
     } catch (error) {
       console.error(error);
       setPredictions([]);
-      setMessage(error.response?.data?.detail || "Prediction lookup failed for this subject.");
+      setMessage(getApiErrorMessage(error, "Prediction lookup failed for this subject."));
     } finally {
       setLoading(false);
     }
-  }
-
-  function normalizeScore(value) {
-    const numericValue = Number(value);
-
-    if (!Number.isFinite(numericValue)) {
-      return null;
-    }
-
-    return numericValue <= 1 ? numericValue * 100 : numericValue;
   }
 
   function getImportanceLabel(score) {
@@ -210,8 +191,8 @@ function PredictionsPage() {
                 >
                   <option value="">Select a subject</option>
                   {subjects.map((subject) => (
-                    <option key={subject.subject_code} value={subject.subject_code}>
-                      {subject.subject_code} - {subject.subject_name}
+                    <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                      {formatSubjectLabel(subject)}
                     </option>
                   ))}
                 </select>
@@ -237,8 +218,8 @@ function PredictionsPage() {
             <EmptyState title="No predictions found" description="The selected subject may need published questions and approved topic analysis before predictions are available." />
           ) : (
             predictions.map((item, index) => {
-              const normalizedScore = normalizeScore(item.confidence_score ?? item.confidence ?? item.score);
-              const scoreText = normalizedScore === null ? "N/A" : `${normalizedScore.toFixed(1)}%`;
+              const normalizedScore = normalizeSuggestionScore(item.prediction_score);
+              const scoreText = formatSuggestionScore(item.prediction_score);
               const importanceLabel = getImportanceLabel(normalizedScore);
 
               return (
@@ -247,7 +228,7 @@ function PredictionsPage() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Prediction {index + 1}</p>
                       <h2 className="mt-2 whitespace-pre-line break-words text-lg font-semibold leading-7 text-slate-950 sm:text-xl">
-                        {item.predicted_topic || item.topic || item.question || item.question_text || "Predicted topic"}
+                        {item.topic || item.question_text || "Predicted topic"}
                       </h2>
                     </div>
                     <Badge tone="indigo">{scoreText}</Badge>
@@ -267,7 +248,7 @@ function PredictionsPage() {
                     </div>
                     <div className="rounded-xl bg-slate-50 px-3 py-2">
                       <p className="text-slate-400">Topic</p>
-                      <p className="font-semibold text-slate-950">{item.predicted_topic || item.topic || "N/A"}</p>
+                      <p className="font-semibold text-slate-950">{item.topic || "N/A"}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 px-3 py-2">
                       <p className="text-slate-400">Subject</p>
@@ -302,7 +283,7 @@ function PredictionsPage() {
                   <Button
                     type="button"
                     onClick={() => navigate("/answers", { state: {
-                      question: item.predicted_topic || item.question || item.question_text || "",
+                      question: item.question_text || item.topic || "",
                       subject_code: item.subject_code || selectedSubject,
                       formula_latex: item.formula_latex || "",
                       diagram_required: Boolean(item.diagram_required),

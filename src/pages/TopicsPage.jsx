@@ -3,17 +3,8 @@ import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
-
-function normalizeSubjects(payload) {
-  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
-
-  return rawSubjects
-    .map((subject) => ({
-      subject_code: String(subject?.subject_code ?? subject?.code ?? subject?.subjectCode ?? "").trim(),
-      subject_name: String(subject?.subject_name ?? subject?.name ?? subject?.subjectName ?? "").trim(),
-    }))
-    .filter((subject) => Boolean(subject.subject_code));
-}
+import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
 function extractTopics(analysis) {
   return analysis?.topics || analysis?.analysis || analysis?.repeated_topics || [];
@@ -61,6 +52,7 @@ function TopicsPage() {
 
   const navigate = useNavigate();
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
+  const academicProfileSignature = getAcademicProfileSignature(user);
 
   async function loadAnalysisData(subjectCode) {
     return apiEndpoints.getSubjectAnalysis(subjectCode);
@@ -71,16 +63,14 @@ function TopicsPage() {
 
     async function initialize() {
       try {
-        const params = { status: "published" };
-        if (user?.university_id) params.university_id = user.university_id;
-        if (user?.department_id) params.department_id = user.department_id;
+        const params = buildSubjectScopeParams(user, { status: "published" });
         const response = await apiEndpoints.getSubjects(params);
 
         if (!active) {
           return;
         }
 
-        const subjectList = normalizeSubjects(response.data);
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
 
         const subjectCode = initialSubjectCode || subjectList[0]?.subject_code || "";
@@ -123,7 +113,7 @@ function TopicsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [academicProfileSignature, initialSubjectCode, user]);
 
   async function handleSubjectChange(event) {
     const subjectCode = event.target.value;
@@ -209,8 +199,8 @@ function TopicsPage() {
                 >
                   <option value="">Select a subject</option>
                   {subjects.map((subject) => (
-                    <option key={subject.subject_code} value={subject.subject_code}>
-                      {subject.subject_code} - {subject.subject_name}
+                    <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                      {formatSubjectLabel(subject)}
                     </option>
                   ))}
                 </select>

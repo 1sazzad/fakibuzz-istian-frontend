@@ -1,6 +1,6 @@
-# FakiBuzz Frontend
+# Q Arena Frontend
 
-FakiBuzz is an institution-ready exam preparation frontend for learners, admins, and education teams. It supports subject browsing, previous-question review, topic analysis, predictions, suggestions, answer generation, exports, feedback, donation/support information, and admin data workflows without assuming a single university or campus.
+Q Arena is an institution-ready exam preparation frontend for learners, admins, and education teams. It supports subject browsing, previous-question review, topic analysis, predictions, suggestions, answer generation, exports, feedback, donation/support information, and admin data workflows without assuming a single university or campus.
 
 ## Features
 
@@ -66,16 +66,16 @@ frontend/
 Create a local `.env` file in the frontend project root. Use placeholders only in shared documentation and do not commit real environment values.
 
 ```env
-VITE_APP_NAME=FakiBuzz
+VITE_APP_NAME=Q Arena
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
 Shared examples may also include:
 
 ```env
-APP_NAME=FakiBuzz
-NEXT_PUBLIC_APP_NAME=FakiBuzz
-SITE_NAME=FakiBuzz
+APP_NAME=Q Arena
+NEXT_PUBLIC_APP_NAME=Q Arena
+SITE_NAME=Q Arena
 ```
 
 ## Local Development

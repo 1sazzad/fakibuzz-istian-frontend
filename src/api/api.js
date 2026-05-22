@@ -196,9 +196,27 @@ function buildQuery(params = {}) {
   return query ? `?${query}` : "";
 }
 
+function normalizePaperTypeParam(value) {
+  const paperType = String(value ?? "").trim().toUpperCase();
+  return paperType === "CQ" || paperType === "MCQ" || paperType === "WRITTEN" ? paperType : undefined;
+}
+
+function buildPaperTypeParams(params = {}) {
+  const paperType = normalizePaperTypeParam(params.paper_type ?? params.paperType);
+  return {
+    ...params,
+    paperType: undefined,
+    paper_type: paperType,
+  };
+}
+
 export const apiEndpoints = {
   register: (payload) => API.post("/auth/register", payload),
-  login: (payload) => API.post("/auth/login", payload),
+  login: (payload) =>
+    API.post("/auth/login", {
+      email: payload?.email?.trim() || "",
+      password: payload?.password || "",
+    }),
   getCurrentUser: () => API.get("/auth/me"),
   updateCurrentUserProfile: (payload) => API.patch("/auth/me/profile", payload),
   verifyEmail: (payload) => API.post("/auth/verify-email", payload),
@@ -212,12 +230,16 @@ export const apiEndpoints = {
   getSubjectOverview: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/overview`),
   getSubjects: (params) => API.get("/subjects", { params }),
   getSubjectQuestions: (subjectCode, params) =>
-    API.get(`/subjects/${encodePath(subjectCode)}/questions`, { params }),
+    API.get(`/subjects/${encodePath(subjectCode)}/questions`, { params: buildPaperTypeParams(params) }),
   searchQuestions: (payload) => API.post("/search", payload),
   getSubjectAnalysis: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/analysis`),
   getSubjectPrediction: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/predictions`),
-  getSuggestions: ({ subject_code, query, top_k }) =>
-    API.get(`/subjects/${encodePath(subject_code)}/suggestions`, { params: { query, top_k } }),
+  getSubjectSuggestions: (subjectCode, params) =>
+    API.get(`/subjects/${encodePath(subjectCode)}/suggestions`, { params: buildPaperTypeParams(params) }),
+  getSuggestions: ({ subject_code, query, top_k, paper_type }) =>
+    API.get(`/subjects/${encodePath(subject_code)}/suggestions`, {
+      params: buildPaperTypeParams({ query, top_k, paper_type }),
+    }),
   generateAnswer: (payload) => API.post("/generate-answer", payload),
   submitFeedback: (payload) => API.post("/feedback", payload),
   getPublicFeedback: (params) => API.get("/feedback/public", { params }),

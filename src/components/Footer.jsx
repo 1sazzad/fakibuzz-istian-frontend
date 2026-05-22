@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { APP_NAME } from "../config/app";
 import { CONTACT_METHODS } from "../config/contact";
+import BrandLogo from "./BrandLogo";
 
 const footerLinks = [
   { to: "/privacy-policy", label: "Privacy Policy" },
@@ -14,12 +14,12 @@ function Footer() {
     <footer className="border-t border-slate-200 bg-slate-950 px-4 py-10 text-white sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1fr_auto]">
         <div className="min-w-0">
-          <p className="text-xl font-semibold tracking-tight">{APP_NAME}</p>
+          <BrandLogo className="items-start" imageClassName="h-11 w-11" textClassName="text-xl font-semibold tracking-tight text-white" />
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-300">
             Exam intelligence for learners.
           </p>
           <p className="mt-5 text-sm text-slate-400">
-            © 2026 FakiBuzz. Built for students, by students.
+            © 2026 Q Arena. Built for students, by students.
           </p>
         </div>
 

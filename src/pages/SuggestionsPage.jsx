@@ -1,26 +1,33 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { apiEndpoints } from "../api/api";
+import { apiEndpoints, getApiStatus } from "../api/api";
 import MathRenderer from "../components/MathRenderer";
-import { Badge, Button, Card, EmptyState, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
-import { MISSING_STUDENT_SCOPE_MESSAGE, isMissingStudentScopeError } from "../utils/auth";
-
-const MARK_TO_ANSWER_TYPE = [
-  { max: 2, type: "2_mark" },
-  { max: 5, type: "5_mark" },
-  { max: 10, type: "10_mark" },
-];
+import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { MISSING_STUDENT_SCOPE_MESSAGE, getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
+import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { getDefaultPaperType, hasPaperTypeSupport, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
+import { formatSubjectLabel, formatSubjectMeta, normalizeSubjectList } from "../utils/subjectLookups";
+import {
+  MAX_SUGGESTION_QUERY_LENGTH,
+  MAX_SUGGESTION_TOP_K,
+  formatSuggestionScore,
+  normalizeSuggestionQuery,
+  normalizeSuggestionResponse,
+  normalizeSuggestionTopK,
+} from "../utils/suggestionLookups";
 
 const KATEX_OPTIONS = {
   throwOnError: false,
   strict: false,
   trust: false,
 };
+
+const SUB_QUESTION_LABELS = ["ক", "খ", "গ", "ঘ"];
 
 const markdownComponents = {
   h2: (props) => <h2 className="mt-6 border-b border-slate-200 pb-2 text-lg font-semibold leading-snug text-slate-950 first:mt-0" {...props} />,
@@ -49,116 +56,69 @@ const markdownComponents = {
   },
 };
 
-function normalizeSubjects(payload) {
-  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
-
-  return rawSubjects
-    .map((subject) => ({
-      subject_code: String(subject?.subject_code ?? subject?.code ?? "").trim(),
-      subject_name: String(subject?.subject_name ?? subject?.name ?? "").trim(),
-    }))
-    .filter((subject) => subject.subject_code);
-}
-
-function normalizeSuggestions(payload) {
-  const seen = new Set();
-
-  function splitSuggestionText(text) {
-    return String(text)
-      .split(/\n+/)
-      .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
-      .filter(Boolean)
-      .map((question) => ({ question }));
-  }
-
-  function collect(value, parentTopic = "") {
-    if (!value) {
-      return [];
-    }
-
-    if (typeof value === "string") {
-      return splitSuggestionText(value).map((item) => ({ ...item, topic: parentTopic || item.topic }));
-    }
-
-    if (Array.isArray(value)) {
-      return value.flatMap((item) => collect(item, parentTopic));
-    }
-
-    if (typeof value !== "object") {
-      return [];
-    }
-
-    if (seen.has(value)) {
-      return [];
-    }
-    seen.add(value);
-
-    const topic = value.topic || value.final_topic || value.suggested_topic || parentTopic;
-    const questionText =
-      value.question ||
-      value.question_text ||
-      value.text ||
-      value.title ||
-      value.prompt ||
-      value.suggestion;
-
-    const directItems = questionText ? [{ ...value, question: questionText, topic }] : [];
-    const nestedItems = [
-      value.probable_questions,
-      value.suggestions,
-      value.suggested_questions,
-      value.important_questions,
-      value.questions,
-      value.items,
-      value.results,
-      value.data,
-    ].flatMap((item) => collect(item, topic));
-
-    return [...directItems, ...nestedItems];
-  }
-
-  return collect(payload)
-    .filter((item, index, list) => {
-      const key = `${getSuggestionText(item)}-${item.topic || ""}`;
-      return key.trim() && list.findIndex((candidate) => `${getSuggestionText(candidate)}-${candidate.topic || ""}` === key) === index;
-    })
-    .sort((first, second) => getNumericScore(second) - getNumericScore(first));
-}
-
 function getErrorMessage(error, fallback) {
   if (isMissingStudentScopeError(error)) {
     return MISSING_STUDENT_SCOPE_MESSAGE;
   }
 
-  const detail = error.response?.data?.detail || error.response?.data?.message;
-
-  if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(", ");
-  }
-
-  if (detail && typeof detail === "object") {
-    return detail.msg || detail.message || JSON.stringify(detail);
-  }
-
-  return typeof detail === "string" ? detail : error.message || fallback;
+  return getApiErrorMessage(error, fallback);
 }
 
-function getQuotaErrorMessage(error) {
-  const quota = error.response?.data?.quota || error.data?.quota;
-  if (!quota) {
-    return "";
+function getSuggestionErrorMessage(error, fallback) {
+  if (isMissingStudentScopeError(error)) {
+    return MISSING_STUDENT_SCOPE_MESSAGE;
   }
 
-  const used = Number(quota.used ?? quota.limit ?? 0);
-  const limit = Number(quota.limit ?? used);
-  return quota.period === "monthly"
-    ? `Monthly AI limit reached. You have used ${used}/${limit} free AI answers this month.`
-    : "AI answer quota exceeded.";
+  const status = getApiStatus(error);
+  const detail = error.response?.data?.detail || error.response?.data?.message || error.data?.detail || error.data?.message;
+  const detailText = Array.isArray(detail)
+    ? detail.map((item) => item.msg || item.message || JSON.stringify(item)).join(", ")
+    : detail && typeof detail === "object"
+      ? detail.msg || detail.message || JSON.stringify(detail)
+      : String(detail || "").trim();
+
+  if (status === 400) {
+    if (/paper[_\s-]?type/i.test(detailText)) {
+      return detailText || "Please select a valid paper type.";
+    }
+
+    if (/inactive|not found|unavailable/i.test(detailText)) {
+      return detailText || "That subject is inactive or unavailable.";
+    }
+
+    if (/blank|empty|required|validation/i.test(detailText)) {
+      return detailText || "Please enter a valid query.";
+    }
+
+    return detailText || "The request was rejected by the server.";
+  }
+
+  if (status === 401) {
+    return detailText || "Your session has expired. Please log in again.";
+  }
+
+  if (status === 403) {
+    return detailText || "You do not have permission to access this subject.";
+  }
+
+  if (status === 404) {
+    return detailText || "That subject could not be found.";
+  }
+
+  if (!error.response) {
+    return error.message || fallback || "Network error. Please check your connection and try again.";
+  }
+
+  return getApiErrorMessage(error, fallback);
 }
 
 function getSuggestionsMessage(payload, count) {
   if (payload?.message) {
     return payload.message;
+  }
+
+  if (payload?.success && count === 0) {
+    return "No suggestions returned for this subject.";
   }
 
   const retrievalSource = payload?.retrieval_source || payload?.diagnostics?.retrieval_source;
@@ -193,17 +153,8 @@ function getSuggestionStatus(payload) {
   return "";
 }
 
-function getSuggestionText(item) {
-  return item.question || item.question_text || item.text || item.title || item.prompt || item.suggestion || "Suggested question";
-}
-
-function getSuggestionMarks(item) {
-  return item.marks ?? item.total_marks ?? item.expected_marks ?? "-";
-}
-
-function getNumericMarks(item) {
-  const rawMarks = Number(getSuggestionMarks(item));
-  return Number.isFinite(rawMarks) && rawMarks > 0 ? rawMarks : null;
+function getSuggestionKey(item, index) {
+  return String(item.question_id || item.id || `${item.question_text || "suggestion"}-${index}`);
 }
 
 function getAnswerTypeForMarks(marks) {
@@ -211,21 +162,24 @@ function getAnswerTypeForMarks(marks) {
     return "5_mark";
   }
 
-  const match = MARK_TO_ANSWER_TYPE.find((item) => marks <= item.max);
-  return match?.type || "15_mark";
-}
-
-function getSuggestionScore(item) {
-  return item.importance ?? item.probability_score ?? item.prediction_score ?? item.importance_score ?? item.score ?? item.confidence ?? item.probability ?? item.frequency;
-}
-
-function getNumericScore(item) {
-  const rawScore = Number(getSuggestionScore(item));
-  if (!Number.isFinite(rawScore)) {
-    return 0;
+  const numericMarks = Number(marks);
+  if (!Number.isFinite(numericMarks)) {
+    return "5_mark";
   }
 
-  return rawScore <= 1 ? rawScore * 100 : rawScore;
+  if (numericMarks <= 2) {
+    return "2_mark";
+  }
+
+  if (numericMarks <= 5) {
+    return "5_mark";
+  }
+
+  if (numericMarks <= 10) {
+    return "10_mark";
+  }
+
+  return "15_mark";
 }
 
 function getScoreMeta(item) {
@@ -246,14 +200,295 @@ function getScoreMeta(item) {
   return { label: "Low", className: "bg-slate-100 text-slate-600", score };
 }
 
-function getSuggestionKey(item, index) {
-  return String(item.id || item.question_id || `${item.question_no || "suggestion"}-${index}`);
+function getQuotaErrorMessage(error) {
+  const quota = error.response?.data?.quota || error.data?.quota;
+  if (!quota) {
+    return "";
+  }
+
+  const used = Number(quota.used ?? quota.limit ?? 0);
+  const limit = Number(quota.limit ?? used);
+  return quota.period === "monthly"
+    ? `Monthly AI limit reached. You have used ${used}/${limit} free AI answers this month.`
+    : "AI answer quota exceeded.";
+}
+
+function normalizeSuggestions(payload) {
+  return normalizeSuggestionResponse(payload);
+}
+
+function getSuggestionText(item) {
+  return item.question_text || item.question || item.text || item.title || item.prompt || item.suggestion || "Suggested question";
+}
+
+function getRawSuggestionText(item) {
+  const fallbackText = "Suggested question";
+  const alternateText = item?.question || item?.text || item?.title || item?.prompt || item?.suggestion || "";
+  if (alternateText) {
+    return alternateText;
+  }
+
+  return item?.question_text === fallbackText ? "" : item?.question_text || "";
+}
+
+function getSuggestionPaperType(item, fallback = "") {
+  return normalizePaperType(item?.paper_type) || fallback;
+}
+
+function getSubQuestionText(subQuestion) {
+  if (typeof subQuestion === "string") {
+    return subQuestion;
+  }
+
+  return subQuestion?.question_text || subQuestion?.text || subQuestion?.question || "";
+}
+
+function getSubQuestionMarks(subQuestion) {
+  if (!subQuestion || typeof subQuestion === "string") {
+    return null;
+  }
+
+  return subQuestion.marks ?? subQuestion.question_marks ?? subQuestion.total_marks ?? null;
+}
+
+function getOptionalText(value) {
+  return String(value ?? "").trim();
+}
+
+function formatStructuredValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => Array.isArray(item) ? item.join(" | ") : typeof item === "object" ? JSON.stringify(item) : String(item)).join("\n");
+  }
+
+  if (typeof value === "object") {
+    const headers = Array.isArray(value.headers) ? value.headers.join(" | ") : "";
+    const rows = Array.isArray(value.rows)
+      ? value.rows.map((row) => Array.isArray(row) ? row.join(" | ") : typeof row === "object" ? JSON.stringify(row) : String(row)).join("\n")
+      : "";
+    return [headers, rows].filter(Boolean).join("\n") || JSON.stringify(value, null, 2);
+  }
+
+  return String(value);
+}
+
+function renderStructuredData(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object") {
+    const headers = Array.isArray(value.headers) ? value.headers : [];
+    const rows = Array.isArray(value.rows) ? value.rows : Array.isArray(value) ? value : [];
+
+    if (headers.length > 0 || rows.length > 0) {
+      return (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50">
+          <table className="min-w-full border-collapse text-left text-sm text-slate-700">
+            {headers.length > 0 && (
+              <thead>
+                <tr>
+                  {headers.map((header, index) => (
+                    <th key={index} className="border border-slate-200 px-3 py-2 font-semibold align-top">{String(header)}</th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => (
+                    <td key={cellIndex} className="border border-slate-200 px-3 py-2 align-top">
+                      {typeof cell === "object" ? JSON.stringify(cell) : String(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+  }
+
+  return <pre className="overflow-x-auto rounded-xl bg-slate-50 p-3 text-xs text-slate-700">{formatStructuredValue(value)}</pre>;
+}
+
+function buildQuestionTextForAnswer(item) {
+  const parts = [];
+  const section = getOptionalText(item?.section);
+  const instruction = getOptionalText(item?.instruction);
+  const stem = String(item?.stem || "").trim();
+  const questionText = String(getRawSuggestionText(item) || "").trim();
+  const wordBox = Array.isArray(item?.word_box) ? item.word_box : [];
+  const subQuestions = Array.isArray(item?.sub_questions) ? item.sub_questions : [];
+  const tableData = formatStructuredValue(item?.table_data).trim();
+
+  if (section) {
+    parts.push(`Section: ${section}`);
+  }
+
+  if (instruction) {
+    parts.push(`Instruction:\n${instruction}`);
+  }
+
+  if (stem) {
+    parts.push(`Stem:\n${stem}`);
+  }
+
+  if (questionText && questionText !== stem) {
+    parts.push(questionText);
+  }
+
+  if (wordBox.length > 0) {
+    parts.push(`Word box: ${wordBox.map(String).join(", ")}`);
+  }
+
+  if (subQuestions.length > 0) {
+    parts.push(
+      subQuestions
+        .map((subQuestion, index) => {
+          const text = getSubQuestionText(subQuestion);
+          const options = Array.isArray(subQuestion?.options) && subQuestion.options.length > 0
+            ? `\nOptions: ${subQuestion.options.map(String).join(", ")}`
+            : "";
+          return `${SUB_QUESTION_LABELS[index] || index + 1}. ${text}${options}`;
+        })
+        .join("\n"),
+    );
+  }
+
+  if (tableData) {
+    parts.push(`Table data:\n${tableData}`);
+  }
+
+  return parts.filter(Boolean).join("\n\n").trim();
+}
+
+function SuggestionPrompt({ item, paperType }) {
+  const resolvedPaperType = getSuggestionPaperType(item, paperType);
+  const stem = String(item?.stem || "").trim();
+  const questionText = resolvedPaperType === "WRITTEN" ? getRawSuggestionText(item) : getSuggestionText(item);
+  const subQuestions = Array.isArray(item?.sub_questions) ? item.sub_questions : [];
+  const options = Array.isArray(item?.options) ? item.options : [];
+  const wordBox = Array.isArray(item?.word_box) ? item.word_box : [];
+  const section = getOptionalText(item?.section);
+  const questionType = getOptionalText(item?.question_type);
+  const instruction = getOptionalText(item?.instruction);
+
+  return (
+    <div className="mt-2 space-y-3">
+      {resolvedPaperType === "WRITTEN" && (section || questionType) && (
+        <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+          {section && <span className="rounded-full bg-slate-50 px-3 py-1">Section: {section}</span>}
+          {questionType && <span className="rounded-full bg-slate-50 px-3 py-1">Type: {questionType}</span>}
+        </div>
+      )}
+      {resolvedPaperType === "WRITTEN" && instruction && (
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+          <span className="font-semibold text-slate-950">Instruction:</span> {instruction}
+        </p>
+      )}
+      {stem && (
+        <div className="text-sm leading-7 text-slate-700 sm:text-base">
+          <MathRenderer value={stem} className="prose max-w-none" />
+        </div>
+      )}
+      {questionText && questionText !== stem && (
+        <h2 className="text-lg font-bold leading-7 text-slate-950 sm:text-xl">
+          <MathRenderer value={questionText} className="prose max-w-none" />
+        </h2>
+      )}
+      {resolvedPaperType === "WRITTEN" && wordBox.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Word Box</p>
+          <div className="flex flex-wrap gap-2">
+            {wordBox.map((word, index) => (
+              <span key={`${index}-${String(word)}`} className="rounded-full bg-white px-3 py-1 text-sm text-slate-700">
+                {String(word)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {(resolvedPaperType === "CQ" || resolvedPaperType === "WRITTEN") && subQuestions.length > 0 && (
+        <div className="space-y-2">
+          {subQuestions.map((subQuestion, subIndex) => {
+            const subQuestionText = getSubQuestionText(subQuestion);
+            const marks = getSubQuestionMarks(subQuestion);
+            const subOptions = Array.isArray(subQuestion?.options) ? subQuestion.options : [];
+            return (
+              <div key={`${subIndex}-${subQuestionText}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+                <span className="font-semibold text-slate-950">{SUB_QUESTION_LABELS[subIndex] || subIndex + 1}.</span>{" "}
+                <MathRenderer value={subQuestionText || "No sub-question text provided."} className="prose max-w-none" />
+                {marks !== null && marks !== undefined && marks !== "" && (
+                  <span className="text-xs font-semibold text-slate-500">{marks} marks</span>
+                )}
+                {resolvedPaperType === "WRITTEN" && subOptions.length > 0 && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {subOptions.map((option, optionIndex) => (
+                      <div key={`${optionIndex}-${String(option)}`} className="rounded-lg border border-slate-100 bg-white px-3 py-2 text-sm text-slate-700">
+                        {String(option)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {resolvedPaperType === "MCQ" && options.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {options.map((option, optionIndex) => (
+            <div key={`${optionIndex}-${String(option)}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {String(option)}
+            </div>
+          ))}
+        </div>
+      )}
+      {resolvedPaperType === "WRITTEN" && item?.table_data && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Table Data</p>
+          {renderStructuredData(item.table_data)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getSuggestionMarks(item) {
+  return item.marks ?? item.total_marks ?? item.expected_marks ?? "-";
+}
+
+function getNumericMarks(item) {
+  const rawMarks = Number(getSuggestionMarks(item));
+  return Number.isFinite(rawMarks) && rawMarks > 0 ? rawMarks : null;
+}
+
+function getSuggestionScore(item) {
+  return item.prediction_score ?? item.importance ?? item.probability_score ?? item.importance_score ?? item.score ?? item.confidence ?? item.probability ?? item.frequency;
+}
+
+function getNumericScore(item) {
+  const rawScore = Number(getSuggestionScore(item));
+  if (!Number.isFinite(rawScore)) {
+    return 0;
+  }
+
+  return rawScore <= 1 ? rawScore * 100 : rawScore;
 }
 
 function SuggestionsPage() {
   const [subjects, setSubjects] = useState([]);
   const { user } = useAuth();
+  const location = useLocation();
+  const initialSubjectCode = String(location.state?.subject_code || "").trim();
   const [subjectCode, setSubjectCode] = useState("");
+  const [selectedPaperType, setSelectedPaperType] = useState("");
   const [query, setQuery] = useState("important questions for final exam");
   const [topK, setTopK] = useState(10);
   const [suggestions, setSuggestions] = useState([]);
@@ -262,41 +497,55 @@ function SuggestionsPage() {
   const [topicFilter, setTopicFilter] = useState("");
   const [predictionLevel, setPredictionLevel] = useState("All");
   const [fallbackWarning, setFallbackWarning] = useState("");
+  const [subjectsLoading, setSubjectsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [missingScope, setMissingScope] = useState(false);
   const [answerStates, setAnswerStates] = useState({});
   const [expandedAnswers, setExpandedAnswers] = useState({});
+  const academicProfileSignature = getAcademicProfileSignature(user);
 
   useEffect(() => {
     async function loadSubjects() {
+      setSubjectsLoading(true);
+
       try {
-        const params = { status: "active" };
-        if (user?.university_id) params.university_id = user.university_id;
-        if (user?.department_id) params.department_id = user.department_id;
+        const params = buildSubjectScopeParams(user, { status: "active" });
         const response = await apiEndpoints.getSubjects(params);
-        const subjectList = normalizeSubjects(response.data);
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
 
-        if (subjectList.length > 0) {
-          setSubjectCode(subjectList[0].subject_code);
+        const nextSubjectCode = initialSubjectCode || subjectList[0]?.subject_code || "";
+        if (nextSubjectCode) {
+          const nextSubject = subjectList.find((subject) => subject.subject_code === nextSubjectCode) || subjectList[0];
+          setSubjectCode(nextSubjectCode);
+          setSelectedPaperType(getDefaultPaperType(nextSubject?.supported_paper_types));
         }
         setMissingScope(false);
       } catch (error) {
         console.error(error);
         setMissingScope(isMissingStudentScopeError(error));
         setMessage(getErrorMessage(error, "Unable to load published subjects. Enter a subject code manually."));
+      } finally {
+        setSubjectsLoading(false);
       }
     }
 
     loadSubjects();
-  }, []);
+  }, [academicProfileSignature, initialSubjectCode, user]);
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function loadSuggestionsForPaperType(paperType = selectedPaperType) {
+    const cleanSubjectCode = subjectCode.trim();
+    const cleanQuery = normalizeSuggestionQuery(query);
+    const cleanTopK = normalizeSuggestionTopK(topK, MAX_SUGGESTION_TOP_K, 10);
 
-    if (!subjectCode.trim()) {
+    if (!cleanSubjectCode) {
       setMessage("Enter a subject code first.");
+      return;
+    }
+
+    if (!cleanQuery) {
+      setMessage("Enter a search query first.");
       return;
     }
 
@@ -310,13 +559,11 @@ function SuggestionsPage() {
     setExpandedAnswers({});
 
     try {
-      const cleanSubjectCode = subjectCode.trim();
-      const cleanQuery = query.trim() || "important questions for final exam";
-      const cleanTopK = Number(topK) || 10;
       const response = await apiEndpoints.getSuggestions({
         subject_code: cleanSubjectCode,
         query: cleanQuery,
         top_k: cleanTopK,
+        paper_type: paperType,
       });
       const nextSuggestions = normalizeSuggestions(response.data);
       const statusMessage = getSuggestionStatus(response.data);
@@ -324,20 +571,25 @@ function SuggestionsPage() {
       setMessage(getSuggestionsMessage(response.data, nextSuggestions.length));
       setModeMessage(statusMessage);
       setWarning(response.data?.warning || "");
-      setFallbackWarning("");
+      setFallbackWarning(response.data?.fallback_warning || "");
       setMissingScope(false);
     } catch (error) {
       console.error(error);
       setMissingScope(isMissingStudentScopeError(error));
-      setMessage(getErrorMessage(error, "Unable to generate suggestions."));
+      setMessage(getSuggestionErrorMessage(error, "Unable to generate suggestions."));
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleSubmit(event) {
+    event.preventDefault();
+    await loadSuggestionsForPaperType(selectedPaperType);
+  }
+
   async function handleGetAnswer(item, index) {
     const cleanSubjectCode = subjectCode.trim();
-    const questionText = getSuggestionText(item).trim();
+    const questionText = buildQuestionTextForAnswer(item);
     const suggestionKey = getSuggestionKey(item, index);
     const numericMarks = getNumericMarks(item);
 
@@ -394,7 +646,7 @@ function SuggestionsPage() {
         [suggestionKey]: {
           loading: false,
           missingScope: answerMissingScope,
-          error: getQuotaErrorMessage(error) || getErrorMessage(error, "Unable to generate answer for this suggestion."),
+          error: getQuotaErrorMessage(error) || getSuggestionErrorMessage(error, "Unable to generate answer for this suggestion."),
           result: null,
         },
       }));
@@ -415,6 +667,29 @@ function SuggestionsPage() {
 
     return true;
   });
+  const currentSubject = subjects.find((subject) => subject.subject_code === subjectCode) || null;
+  const supportedPaperTypes = normalizeSupportedPaperTypes(currentSubject?.supported_paper_types);
+  const showPaperSelector = hasPaperTypeSupport(currentSubject);
+
+  function handleSubjectChange(event) {
+    const nextSubjectCode = event.target.value;
+    const nextSubject = subjects.find((subject) => subject.subject_code === nextSubjectCode);
+    setSubjectCode(nextSubjectCode);
+    setSelectedPaperType(getDefaultPaperType(nextSubject?.supported_paper_types));
+    setSuggestions([]);
+    setAnswerStates({});
+    setExpandedAnswers({});
+    setMessage("");
+  }
+
+  async function handlePaperTypeChange(nextPaperType) {
+    setSelectedPaperType(nextPaperType);
+    await loadSuggestionsForPaperType(nextPaperType);
+  }
+
+  if (subjectsLoading) {
+    return <LoadingSpinner label="Loading suggestions..." />;
+  }
 
   return (
     <ResponsiveContainer>
@@ -426,13 +701,25 @@ function SuggestionsPage() {
 
       <Card>
         <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-4">
+          <label className="space-y-2 text-sm font-medium text-slate-700 lg:col-span-4">
+            Query
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              maxLength={MAX_SUGGESTION_QUERY_LENGTH}
+              placeholder="important questions for final exam"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            />
+            <p className="text-xs text-slate-500">{normalizeSuggestionQuery(query).length}/{MAX_SUGGESTION_QUERY_LENGTH} characters</p>
+          </label>
+
           <label className="space-y-2 text-sm font-medium text-slate-700">
             Subject
             {subjects.length > 0 ? (
-              <select value={subjectCode} onChange={(event) => setSubjectCode(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100">
+              <select value={subjectCode} onChange={handleSubjectChange} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100">
                 {subjects.map((subject) => (
-                  <option key={subject.subject_code} value={subject.subject_code}>
-                    {subject.subject_code} - {subject.subject_name}
+                  <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                    {formatSubjectLabel(subject)}{formatSubjectMeta(subject) ? ` (${formatSubjectMeta(subject)})` : ""}
                   </option>
                 ))}
               </select>
@@ -459,7 +746,7 @@ function SuggestionsPage() {
 
           <label className="space-y-2 text-sm font-medium text-slate-700">
             Number of Suggestions
-            <select value={topK} onChange={(e) => setTopK(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100">
+            <select value={topK} onChange={(e) => setTopK(normalizeSuggestionTopK(Number(e.target.value), MAX_SUGGESTION_TOP_K, 10))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100">
               <option value="5">5</option>
               <option value="10">10</option>
               <option value="15">15</option>
@@ -470,6 +757,14 @@ function SuggestionsPage() {
           </label>
 
           <div className="flex flex-col gap-2 sm:flex-row lg:col-span-4">
+            {showPaperSelector && (
+              <PaperTypeSelector
+                supportedPaperTypes={supportedPaperTypes}
+                value={selectedPaperType}
+                onChange={handlePaperTypeChange}
+                className="w-full sm:w-auto"
+              />
+            )}
             <Button type="submit" disabled={loading} className="w-full sm:w-auto">
               {loading ? "Loading..." : "Get Suggestions"}
             </Button>
@@ -495,7 +790,7 @@ function SuggestionsPage() {
           
           {filteredSuggestions.map((item, index) => {
             const scoreMeta = getScoreMeta(item);
-            const scoreText = `${scoreMeta.score.toFixed(1)}%`;
+            const scoreText = formatSuggestionScore(item.prediction_score);
             const suggestionKey = getSuggestionKey(item, index);
             const answerState = answerStates[suggestionKey] || {};
             const answerResult = answerState.result;
@@ -507,17 +802,22 @@ function SuggestionsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-indigo-700">Suggestion {item.suggestion_no || index + 1}</p>
-                    <h2 className="mt-2 text-lg font-bold leading-7 text-slate-950 sm:text-xl">
-                      <MathRenderer value={getSuggestionText(item)} className="prose max-w-none" />
-                    </h2>
+                    <SuggestionPrompt item={item} paperType={selectedPaperType} />
                   </div>
-                  <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${scoreMeta.className}`}>{scoreMeta.label}</span>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {getSuggestionPaperType(item, selectedPaperType) && (
+                      <Badge tone={getSuggestionPaperType(item, selectedPaperType) === "MCQ" ? "cyan" : getSuggestionPaperType(item, selectedPaperType) === "WRITTEN" ? "green" : "indigo"}>
+                        {getSuggestionPaperType(item, selectedPaperType)}
+                      </Badge>
+                    )}
+                    <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${scoreMeta.className}`}>{scoreMeta.label}</span>
+                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-3 text-sm font-medium text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
-                  <span className="rounded-xl bg-slate-100 px-3 py-2">{item.topic || item.final_topic || item.suggested_topic || "No topic"}</span>
+                  <span className="rounded-xl bg-slate-100 px-3 py-2">{item.topic || "No topic"}</span>
                   <span className="rounded-xl bg-slate-100 px-3 py-2">
-                    Source years: {Array.isArray(item.source_years) && item.source_years.length > 0 ? item.source_years.join(", ") : item.exam_year || "Unknown"}
+                    Source years: {item.year || item.exam_year || "Unknown"}
                   </span>
                   <span className="rounded-xl bg-slate-100 px-3 py-2">Marks: {getSuggestionMarks(item)}</span>
                   <Badge tone="indigo" className="justify-center rounded-xl py-2">Importance: {scoreText}</Badge>
@@ -585,7 +885,7 @@ function SuggestionsPage() {
                                   [suggestionKey]: { ...(current[suggestionKey] || {}), copied: false },
                                 }));
                               }, 1500);
-                            } catch (e) {
+                            } catch {
                               // ignore
                             }
                           }}
@@ -640,8 +940,8 @@ function SuggestionsPage() {
 
           {suggestions.length === 0 && !loading && (
             <EmptyState
-              title="No suggestions found"
-              description="Check that the subject has published questions and approved topics, then try a broader query."
+              title={selectedPaperType ? `No ${selectedPaperType} suggestions found for this subject.` : "No suggestions found"}
+              description="Try changing the subject, topic, prediction level, or query."
             />
           )}
       </div>

@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { createAdminUser } from "../../api/authApi";
 import { apiEndpoints } from "../../api/api";
+import BrandLogo from "../../components/BrandLogo";
 import { useAuth } from "../../context/useAuth";
 import { Badge, Button, Card, ErrorMessage, PageHeader, PasswordInput, ResponsiveContainer } from "../../components/ui";
 import { buildInstitutionMetadata } from "../../utils/institution";
@@ -195,6 +196,9 @@ function AdminDashboardPage() {
 
   return (
     <ResponsiveContainer>
+      <div className="mb-4 inline-flex rounded-full border border-slate-200 bg-white px-3 py-2 shadow-sm shadow-slate-200/60">
+        <BrandLogo imageClassName="h-8 w-8" textClassName="text-sm font-semibold tracking-tight text-slate-950" />
+      </div>
       <PageHeader
         eyebrow="Admin Dashboard"
         title={`Welcome, ${user?.full_name || "Admin"}`}

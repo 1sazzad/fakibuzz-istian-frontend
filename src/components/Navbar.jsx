@@ -1,10 +1,10 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../context/useAuth";
-import { APP_NAME } from "../config/app";
 import Button from "./ui/Button";
 import { isSuperAdminRole } from "../utils/auth";
 import { useSidebarCollapsed } from "../hooks/useSidebarCollapsed";
+import BrandLogo from "./BrandLogo";
 
 const publicNavItems = [
   { to: "/#features", label: "Features" },
@@ -73,10 +73,9 @@ function Brand({ onClick }) {
       to="/"
       onClick={onClick}
       className="block min-w-0 cursor-pointer rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-      aria-label="Go to FakiBuzz homepage"
+      aria-label="Go to Q Arena homepage"
     >
-      <span className="block truncate text-lg font-semibold tracking-tight text-slate-950">{APP_NAME}</span>
-      <span className="block truncate text-xs font-medium text-slate-500">Exam intelligence for learners</span>
+      <BrandLogo className="gap-3" imageClassName="h-10 w-10" textClassName="block truncate text-lg font-semibold tracking-tight text-slate-950" />
     </Link>
   );
 }
@@ -286,11 +285,11 @@ function Navbar() {
             <Link
               to="/"
               onClick={handleBrandClick}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white"
-              aria-label="FakiBuzz"
-              title="FakiBuzz"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white"
+              aria-label="Q Arena"
+              title="Q Arena"
             >
-              F
+              <BrandLogo showText={false} imageClassName="h-10 w-10" />
             </Link>
           )}
           <button

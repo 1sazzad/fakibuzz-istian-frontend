@@ -5,6 +5,7 @@ import heroImage from "../assets/hero.png";
 import { APP_NAME } from "../config/app";
 import { CONTACT_METHODS } from "../config/contact";
 import Footer from "../components/Footer";
+import BrandLogo from "../components/BrandLogo";
 import PublicNavbar from "../components/PublicNavbar";
 import { useAuth } from "../context/useAuth";
 import { Button, Card } from "../components/ui";
@@ -135,6 +136,7 @@ function HomePage() {
         <section id="home" className="relative overflow-hidden border-b border-slate-200 bg-white">
         <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-12 sm:px-6 md:py-16 lg:min-h-[calc(100vh-73px)] lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:px-8 lg:py-20">
           <div className="min-w-0 max-w-3xl">
+            <BrandLogo className="mb-5" imageClassName="h-12 w-12" textClassName="text-xl font-semibold tracking-tight text-slate-950" />
             <p className="inline-flex max-w-full rounded-full border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-semibold leading-relaxed text-cyan-800">
               AI-powered exam preparation for university students
             </p>
@@ -349,7 +351,7 @@ function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-10">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">Feedback</p>
-            <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Help improve FakiBuzz</h2>
+            <h2 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Help improve Q Arena</h2>
             <p className="mt-4 break-words text-base leading-relaxed text-slate-600">
               Share subject requests, usability issues, prediction feedback, or ideas that would make exam preparation easier.
             </p>

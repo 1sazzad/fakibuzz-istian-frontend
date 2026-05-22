@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { APP_NAME } from "../config/app";
+import BrandLogo from "./BrandLogo";
 
 function PublicNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,11 +32,8 @@ function PublicNavbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between gap-4 sm:h-20">
           {/* Logo */}
-          <Link to="/" className="flex shrink-0 items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600">
-              <span className="text-sm font-bold text-white">F</span>
-            </div>
-            <span className="hidden font-semibold text-slate-900 sm:inline">{APP_NAME}</span>
+          <Link to="/" className="flex shrink-0 items-center">
+            <BrandLogo imageClassName="h-9 w-9" textClassName="hidden font-semibold text-slate-900 sm:block" />
           </Link>
 
           {/* Desktop Navigation */}

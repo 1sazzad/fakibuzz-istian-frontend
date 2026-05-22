@@ -1,9 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { apiEndpoints } from "../api/api";
-import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
+import { getDefaultPaperType, hasPaperTypeSupport, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
+import {
+  formatSubjectMeta,
+  formatSubjectLabel,
+  normalizeSubjectList,
+  normalizeSubjectLookupResponse,
+  normalizeSubjectSearchQuery,
+} from "../utils/subjectLookups";
 
 function normalizeQuestions(payload) {
   const items = payload?.questions || payload?.items || payload?.data || payload || [];
@@ -15,16 +24,215 @@ function normalizeTopics(payload) {
 }
 
 const QUESTIONS_PER_PAGE = 20;
+const SUB_QUESTION_LABELS = ["ক", "খ", "গ", "ঘ"];
+
+function getQuestionPaperType(question, fallback = "") {
+  return normalizePaperType(question?.paper_type) || fallback;
+}
+
+function getQuestionText(question) {
+  return question?.question_text || question?.text || question?.question || "";
+}
+
+function getSubQuestionText(subQuestion) {
+  if (typeof subQuestion === "string") {
+    return subQuestion;
+  }
+
+  return subQuestion?.question_text || subQuestion?.text || subQuestion?.question || "";
+}
+
+function getSubQuestionMarks(subQuestion) {
+  if (!subQuestion || typeof subQuestion === "string") {
+    return null;
+  }
+
+  return subQuestion.marks ?? subQuestion.question_marks ?? subQuestion.total_marks ?? null;
+}
+
+function getOptionalText(value) {
+  return String(value ?? "").trim();
+}
+
+function renderStructuredData(value) {
+  if (!value) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return (
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="min-w-full border-collapse text-left text-sm text-slate-700">
+          <tbody>
+            {value.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => (
+                  <td key={cellIndex} className="border border-slate-200 px-3 py-2 align-top">
+                    {typeof cell === "object" ? JSON.stringify(cell) : String(cell)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (typeof value === "object") {
+    const headers = Array.isArray(value.headers) ? value.headers : [];
+    const rows = Array.isArray(value.rows) ? value.rows : [];
+
+    if (headers.length > 0 || rows.length > 0) {
+      return (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="min-w-full border-collapse text-left text-sm text-slate-700">
+            {headers.length > 0 && (
+              <thead>
+                <tr>
+                  {headers.map((header, index) => (
+                    <th key={index} className="border border-slate-200 px-3 py-2 font-semibold align-top">
+                      {String(header)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {(Array.isArray(row) ? row : [row]).map((cell, cellIndex) => (
+                    <td key={cellIndex} className="border border-slate-200 px-3 py-2 align-top">
+                      {typeof cell === "object" ? JSON.stringify(cell) : String(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    return <pre className="overflow-x-auto rounded-xl bg-white p-3 text-xs text-slate-700">{JSON.stringify(value, null, 2)}</pre>;
+  }
+
+  return <p className="whitespace-pre-line text-sm leading-6 text-slate-700">{String(value)}</p>;
+}
+
+function QuestionBody({ question, paperType }) {
+  const resolvedPaperType = getQuestionPaperType(question, paperType);
+  const questionText = getQuestionText(question);
+  const subQuestions = Array.isArray(question?.sub_questions) ? question.sub_questions : [];
+  const options = Array.isArray(question?.options) ? question.options : [];
+  const wordBox = Array.isArray(question?.word_box) ? question.word_box : [];
+  const section = getOptionalText(question?.section);
+  const questionType = getOptionalText(question?.question_type);
+  const instruction = getOptionalText(question?.instruction);
+
+  return (
+    <div className="mt-4 space-y-3">
+      {resolvedPaperType === "WRITTEN" && (section || questionType) && (
+        <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+          {section && <span className="rounded-full bg-white px-3 py-1">Section: {section}</span>}
+          {questionType && <span className="rounded-full bg-white px-3 py-1">Type: {questionType}</span>}
+        </div>
+      )}
+
+      {resolvedPaperType === "WRITTEN" && instruction && (
+        <p className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
+          <span className="font-semibold text-slate-950">Instruction:</span> {instruction}
+        </p>
+      )}
+
+      {question?.stem && (
+        <p className="whitespace-pre-line break-words text-sm leading-7 text-slate-700 sm:text-base">
+          {question.stem}
+        </p>
+      )}
+
+      {questionText && (
+        <p className="whitespace-pre-line break-words text-sm leading-7 text-slate-700 sm:text-base">
+          {questionText}
+        </p>
+      )}
+
+      {!question?.stem && !questionText && resolvedPaperType !== "WRITTEN" && (
+        <p className="text-sm leading-7 text-slate-500 sm:text-base">No question text provided.</p>
+      )}
+
+      {resolvedPaperType === "WRITTEN" && wordBox.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Word Box</p>
+          <div className="flex flex-wrap gap-2">
+            {wordBox.map((word, index) => (
+              <span key={`${index}-${String(word)}`} className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">
+                {String(word)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {resolvedPaperType === "MCQ" && options.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {options.map((option, optionIndex) => (
+            <div key={`${optionIndex}-${String(option)}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+              {String(option)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(resolvedPaperType === "CQ" || resolvedPaperType === "WRITTEN") && subQuestions.length > 0 && (
+        <div className="space-y-2">
+          {subQuestions.map((subQuestion, subIndex) => {
+            const subQuestionText = getSubQuestionText(subQuestion);
+            const marks = getSubQuestionMarks(subQuestion);
+            const subOptions = Array.isArray(subQuestion?.options) ? subQuestion.options : [];
+            return (
+              <div key={`${subIndex}-${subQuestionText}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
+                <span className="font-semibold text-slate-950">{SUB_QUESTION_LABELS[subIndex] || subIndex + 1}.</span>{" "}
+                {subQuestionText || "No sub-question text provided."}
+                {marks !== null && marks !== undefined && marks !== "" && (
+                  <span className="ml-2 text-xs font-semibold text-slate-500">— {marks} marks</span>
+                )}
+                {resolvedPaperType === "WRITTEN" && subOptions.length > 0 && (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {subOptions.map((option, optionIndex) => (
+                      <div key={`${optionIndex}-${String(option)}`} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                        {String(option)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {resolvedPaperType === "WRITTEN" && question?.table_data && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Table Data</p>
+          {renderStructuredData(question.table_data)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function QuestionsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const academicProfileSignature = getAcademicProfileSignature(user);
   const [subjects, setSubjects] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [searchResult, setSearchResult] = useState(null);
   const [overview, setOverview] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [selectedPaperType, setSelectedPaperType] = useState("");
   const [questionPage, setQuestionPage] = useState(1);
   const [questionLimit] = useState(QUESTIONS_PER_PAGE);
   const [totalQuestions, setTotalQuestions] = useState(0);
@@ -35,29 +243,73 @@ function QuestionsPage() {
   const [message, setMessage] = useState("Search for a subject code or pick one from the list to load published data.");
   const [missingScope, setMissingScope] = useState(false);
 
+  const loadSubjectData = useCallback(async (subjectCode, page = 1, paperType = "") => {
+    if (!subjectCode) {
+      setOverview(null);
+      setQuestions([]);
+      setQuestionPage(1);
+      setTotalQuestions(0);
+      setTotalQuestionPages(0);
+      return;
+    }
+
+    setLoadingSubject(true);
+    const safePage = Math.max(1, Number(page) || 1);
+
+    try {
+      const [overviewResponse, questionsResponse] = await Promise.all([
+        apiEndpoints.getSubjectOverview(subjectCode),
+        apiEndpoints.getSubjectQuestions(subjectCode, {
+          page: safePage,
+          limit: questionLimit,
+          paper_type: paperType,
+        }),
+      ]);
+
+      const questionPayload = questionsResponse.data || {};
+      setOverview(overviewResponse.data || null);
+      setQuestions(normalizeQuestions(questionPayload));
+      setQuestionPage(Number(questionPayload.current_page || questionPayload.page || safePage));
+      setTotalQuestions(Number(questionPayload.total || 0));
+      setTotalQuestionPages(Number(questionPayload.total_pages || 0));
+      setMissingScope(false);
+      setMessage(`Loaded published data for ${subjectCode}${paperType ? ` (${paperType})` : ""}.`);
+    } catch (error) {
+      console.error(error);
+      setOverview(null);
+      setQuestions([]);
+      setTotalQuestions(0);
+      setTotalQuestionPages(0);
+      setMissingScope(isMissingStudentScopeError(error));
+      setMessage(getApiErrorMessage(error, "Unable to load subject data right now."));
+    } finally {
+      setLoadingSubject(false);
+    }
+  }, [questionLimit]);
+
   useEffect(() => {
     let active = true;
 
     async function initialize() {
       try {
-        // prefer student's university/department scope when available
-        const params = { status: "published" };
-        if (user?.university_id) params.university_id = user.university_id;
-        if (user?.department_id) params.department_id = user.department_id;
+        const params = buildSubjectScopeParams(user, { status: "published" });
         const response = await apiEndpoints.getSubjects(params);
 
         if (!active) {
           return;
         }
 
-        const subjectList = response.data?.subjects || [];
+        const subjectList = normalizeSubjectList(response.data);
         setSubjects(subjectList);
         setMissingScope(false);
 
         if (subjectList.length > 0) {
-          const firstSubjectCode = subjectList[0].subject_code;
+          const firstSubject = subjectList[0];
+          const firstSubjectCode = firstSubject.subject_code;
+          const defaultPaperType = getDefaultPaperType(firstSubject.supported_paper_types);
           setSelectedSubject(firstSubjectCode);
-          await loadSubjectData(firstSubjectCode, 1);
+          setSelectedPaperType(defaultPaperType);
+          await loadSubjectData(firstSubjectCode, 1, defaultPaperType);
         } else {
           setMessage("No published subjects are available yet.");
         }
@@ -79,55 +331,14 @@ function QuestionsPage() {
     return () => {
       active = false;
     };
-  }, []);
-
-  async function loadSubjectData(subjectCode, page = 1) {
-    if (!subjectCode) {
-      setOverview(null);
-      setQuestions([]);
-      setQuestionPage(1);
-      setTotalQuestions(0);
-      setTotalQuestionPages(0);
-      return;
-    }
-
-    setLoadingSubject(true);
-    const safePage = Math.max(1, Number(page) || 1);
-
-    try {
-      const [overviewResponse, questionsResponse] = await Promise.all([
-        apiEndpoints.getSubjectOverview(subjectCode),
-        apiEndpoints.getSubjectQuestions(subjectCode, {
-          page: safePage,
-          limit: questionLimit,
-        }),
-      ]);
-
-      const questionPayload = questionsResponse.data || {};
-      setOverview(overviewResponse.data || null);
-      setQuestions(normalizeQuestions(questionPayload));
-      setQuestionPage(Number(questionPayload.current_page || questionPayload.page || safePage));
-      setTotalQuestions(Number(questionPayload.total || 0));
-      setTotalQuestionPages(Number(questionPayload.total_pages || 0));
-      setMissingScope(false);
-      setMessage(`Loaded published data for ${subjectCode}.`);
-    } catch (error) {
-      console.error(error);
-      setOverview(null);
-      setQuestions([]);
-      setTotalQuestions(0);
-      setTotalQuestionPages(0);
-      setMissingScope(isMissingStudentScopeError(error));
-      setMessage(getApiErrorMessage(error, "Unable to load subject data right now."));
-    } finally {
-      setLoadingSubject(false);
-    }
-  }
+  }, [academicProfileSignature, loadSubjectData, user]);
 
   async function handleSearch(event) {
     event.preventDefault();
 
-    if (!searchQuery.trim()) {
+    const cleanQuery = normalizeSubjectSearchQuery(searchQuery);
+
+    if (!cleanQuery) {
       setMessage("Enter a subject code or subject name to search.");
       return;
     }
@@ -135,14 +346,16 @@ function QuestionsPage() {
     setSearching(true);
 
     try {
-      const response = await apiEndpoints.searchSubject(searchQuery.trim());
-      const data = response.data || {};
-        setSearchResult(data);
+      const response = await apiEndpoints.searchSubject(cleanQuery);
+      const data = normalizeSubjectLookupResponse(response.data) || {};
+      setSearchResult(data);
 
-      if (data.found && data.subject_code) {
+      if ((data.found || data.subject_code) && data.subject_code) {
+        const defaultPaperType = getDefaultPaperType(data.supported_paper_types);
         setMissingScope(false);
         setSelectedSubject(data.subject_code);
-        await loadSubjectData(data.subject_code, 1);
+        setSelectedPaperType(defaultPaperType);
+        await loadSubjectData(data.subject_code, 1, defaultPaperType);
       } else {
         setOverview(null);
         setQuestions([]);
@@ -150,7 +363,7 @@ function QuestionsPage() {
         setTotalQuestions(0);
         setTotalQuestionPages(0);
         setMissingScope(false);
-        setMessage(data.message || `No published subject found for "${searchQuery.trim()}".`);
+        setMessage(data.message || `No published subject found for "${cleanQuery}".`);
       }
     } catch (error) {
       console.error(error);
@@ -178,7 +391,10 @@ function QuestionsPage() {
     }
 
     setSearchResult(null);
-    await loadSubjectData(subjectCode, 1);
+    const subject = subjects.find((item) => item.subject_code === subjectCode);
+    const defaultPaperType = getDefaultPaperType(subject?.supported_paper_types);
+    setSelectedPaperType(defaultPaperType);
+    await loadSubjectData(subjectCode, 1, defaultPaperType);
   }
 
   async function handleQuestionPageChange(nextPage) {
@@ -189,11 +405,25 @@ function QuestionsPage() {
     if (boundedPage === questionPage) {
       return;
     }
-    await loadSubjectData(selectedSubject, boundedPage);
+    await loadSubjectData(selectedSubject, boundedPage, selectedPaperType);
   }
 
   const topicEntries = normalizeTopics(overview);
   const availableYears = overview?.available_years || [];
+  const currentSubject = searchResult?.subject_code === selectedSubject
+    ? searchResult
+    : subjects.find((subject) => subject.subject_code === selectedSubject) || overview || null;
+  const supportedPaperTypes = normalizeSupportedPaperTypes(currentSubject?.supported_paper_types);
+  const showPaperSelector = hasPaperTypeSupport(currentSubject);
+
+  async function handlePaperTypeChange(nextPaperType) {
+    if (!selectedSubject || loadingSubject) {
+      return;
+    }
+
+    setSelectedPaperType(nextPaperType);
+    await loadSubjectData(selectedSubject, 1, nextPaperType);
+  }
 
   if (booting) {
     return <LoadingSpinner label="Loading subjects..." />;
@@ -227,8 +457,8 @@ function QuestionsPage() {
             >
               <option value="">Select a subject</option>
               {subjects.map((subject) => (
-                <option key={subject.subject_code} value={subject.subject_code}>
-                  {subject.subject_code} - {subject.subject_name}
+                <option key={subject.id || subject.subject_code} value={subject.subject_code}>
+                  {formatSubjectLabel(subject)}{formatSubjectMeta(subject) ? ` (${formatSubjectMeta(subject)})` : ""}
                 </option>
               ))}
             </select>
@@ -253,7 +483,7 @@ function QuestionsPage() {
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-cyan-700">Search result</p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-950">
-                  {searchResult.subject_code || "Subject lookup"}
+                  {formatSubjectLabel(searchResult) || "Subject lookup"}
                 </h2>
               </div>
               <span className={`rounded-full px-3 py-1 text-sm font-medium ${searchResult.found ? "bg-indigo-50 text-indigo-700" : "bg-amber-50 text-amber-700"}`}>
@@ -297,8 +527,11 @@ function QuestionsPage() {
                     {overview.subject_code || selectedSubject}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    {overview.subject_name || subjects.find((subject) => subject.subject_code === selectedSubject)?.subject_name || "Published subject"}
+                    {overview.subject_name || formatSubjectLabel(subjects.find((subject) => subject.subject_code === selectedSubject)) || "Published subject"}
                   </p>
+                  {formatSubjectMeta(currentSubject) && (
+                    <p className="mt-1 text-sm font-medium text-slate-600">{formatSubjectMeta(currentSubject)}</p>
+                  )}
                 </div>
                 <Badge>
                   Prediction {overview.prediction_available ? "available" : "not ready"}
@@ -388,9 +621,18 @@ function QuestionsPage() {
               <p className="text-xs uppercase tracking-[0.24em] text-cyan-700">Published questions</p>
               <h2 className="mt-2 text-2xl font-semibold text-slate-950">Questions for the selected subject</h2>
             </div>
-            <Badge>
-              {loadingSubject ? "Refreshing..." : `${totalQuestions || questions.length} total`}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              {showPaperSelector && (
+                <PaperTypeSelector
+                  supportedPaperTypes={supportedPaperTypes}
+                  value={selectedPaperType}
+                  onChange={handlePaperTypeChange}
+                />
+              )}
+              <Badge>
+                {loadingSubject ? "Refreshing..." : `${totalQuestions || questions.length} total`}
+              </Badge>
+            </div>
           </div>
           {totalQuestionPages > 1 && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3">
@@ -422,7 +664,10 @@ function QuestionsPage() {
 
           <div className="mt-5 grid gap-4">
             {questions.length === 0 ? (
-              <EmptyState title="No published questions" description="This subject is published, but no question records were returned." />
+              <EmptyState
+                title={selectedPaperType ? `No ${selectedPaperType} questions found for this subject.` : "No published questions"}
+                description={selectedPaperType ? "Try another supported paper type if available." : "This subject is published, but no question records were returned."}
+              />
             ) : (
               questions.map((question, index) => (
                 <article key={question.id || `${question.question_no || index}-${index}`} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
@@ -438,11 +683,14 @@ function QuestionsPage() {
                     <Badge>
                       {question.marks ?? "-"} marks
                     </Badge>
+                    {getQuestionPaperType(question, selectedPaperType) && (
+                      <Badge tone={getQuestionPaperType(question, selectedPaperType) === "MCQ" ? "cyan" : getQuestionPaperType(question, selectedPaperType) === "WRITTEN" ? "green" : "indigo"}>
+                        {getQuestionPaperType(question, selectedPaperType)}
+                      </Badge>
+                    )}
                   </div>
 
-                  <p className="mt-4 whitespace-pre-line break-words text-sm leading-7 text-slate-700 sm:text-base">
-                    {question.question_text || question.text || "No question text provided."}
-                  </p>
+                  <QuestionBody question={question} paperType={selectedPaperType} />
                   <QuestionExtras item={question} />
 
                   <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">

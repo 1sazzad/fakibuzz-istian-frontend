@@ -6,7 +6,7 @@ const sections = [
   {
     title: "Information we collect",
     description:
-      "FakiBuzz may collect account details, student profile information, feedback messages, search activity, and usage analytics needed to operate and improve the platform.",
+      "Q Arena may collect account details, student profile information, feedback messages, search activity, and usage analytics needed to operate and improve the platform.",
   },
   {
     title: "How we use data",
@@ -37,7 +37,7 @@ function PrivacyPolicyPage() {
           <PageHeader
             eyebrow="Legal"
             title="Privacy Policy"
-            description="A basic overview of how FakiBuzz handles student information and platform data."
+            description="A basic overview of how Q Arena handles student information and platform data."
           />
 
           <div className="grid gap-4">

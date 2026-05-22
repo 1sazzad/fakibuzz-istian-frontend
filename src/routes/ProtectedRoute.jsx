@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { isStudentRouteRole, PERMISSION_DENIED_MESSAGE, MISSING_STUDENT_SCOPE_MESSAGE } from "../utils/auth";
+import { isAcademicProfileComplete } from "../utils/academicProfile";
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading, role, user } = useAuth();
@@ -21,7 +22,7 @@ function ProtectedRoute({ children }) {
   // Prevent students without academic scope from accessing subject-related flows
   if (
     user?.role === "student" &&
-    (!user?.university_id || !user?.department_id) &&
+    !isAcademicProfileComplete(user) &&
     location?.pathname &&
     [
       "/subjects",

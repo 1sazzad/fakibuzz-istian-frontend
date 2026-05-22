@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import ResendVerificationForm from "../components/ResendVerificationForm";
 import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
-import { getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
+import { getApiErrorField, getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
 
 function AdminLoginPage() {
   const { login, logout } = useAuth();
@@ -11,6 +11,7 @@ function AdminLoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [showResendVerification, setShowResendVerification] = useState(false);
 
   function updateField(field, value) {
@@ -19,19 +20,38 @@ function AdminLoginPage() {
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
     setError("");
+    setFieldErrors({});
     setShowResendVerification(false);
 
-    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      setError("Enter a valid email address.");
+    const email = form.email.trim();
+    const nextFieldErrors = {};
+
+    if (!email) {
+      nextFieldErrors.email = "Email is required.";
+    } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+      nextFieldErrors.email = "Enter a valid email address.";
+    }
+
+    if (!form.password) {
+      nextFieldErrors.password = "Password is required.";
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError(Object.values(nextFieldErrors)[0]);
       setLoading(false);
       return;
     }
 
     try {
       const user = await login({
-        email: form.email.trim(),
+        email,
         password: form.password,
       });
 
@@ -49,7 +69,12 @@ function AdminLoginPage() {
         setError(UNVERIFIED_EMAIL_MESSAGE);
         setShowResendVerification(true);
       } else {
-        setError(getApiErrorMessage(err, "Wrong email or password."));
+        const message = getApiErrorMessage(err, "Invalid email or password.");
+        const field = getApiErrorField(err);
+        if (field) {
+          setFieldErrors({ [field]: message });
+        }
+        setError(message);
       }
     } finally {
       setLoading(false);
@@ -73,9 +98,11 @@ function AdminLoginPage() {
               value={form.email}
               onChange={(event) => updateField("email", event.target.value)}
               required
+              aria-invalid={Boolean(fieldErrors.email)}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
               placeholder="admin@example.com"
             />
+            <ErrorMessage>{fieldErrors.email}</ErrorMessage>
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
@@ -84,9 +111,11 @@ function AdminLoginPage() {
               value={form.password}
               onChange={(event) => updateField("password", event.target.value)}
               required
+              aria-invalid={Boolean(fieldErrors.password)}
               placeholder="Admin password"
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
+            <ErrorMessage>{fieldErrors.password}</ErrorMessage>
           </label>
 
           <ErrorMessage>{error}</ErrorMessage>

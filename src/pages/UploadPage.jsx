@@ -1,9 +1,249 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { apiEndpoints } from "../api/api";
 import API from "../api/api";
+import {
+  getLookupId,
+  getLookupLabel,
+  normalizeDepartments,
+  normalizeUniversities,
+} from "../utils/academicLookups";
+import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
 const DEFAULT_MAX_JSON_IMPORT_BYTES = 2 * 1024 * 1024;
 const MAX_JSON_IMPORT_BYTES = Number(import.meta.env.VITE_MAX_JSON_IMPORT_BYTES) || DEFAULT_MAX_JSON_IMPORT_BYTES;
+const SCOPE_TYPES = {
+  UNIVERSITY: "UNIVERSITY",
+  BOARD: "BOARD",
+};
+const ACADEMIC_LEVELS = ["SSC", "HSC"];
+const BOARD_GROUPS = ["Science", "Business Studies", "Humanities", "Common"];
+const PAPER_TYPES = ["CQ", "MCQ", "WRITTEN"];
+
+const UNIVERSITY_JSON_TEMPLATE = {
+  exam_name: "Final Examination",
+  exam_year: 2025,
+  subject_name: "E-Commerce and Web Engineering",
+  subject_code: "CSE-421",
+  time: "3 hours",
+  total_marks: 60,
+  status: "draft",
+  source_type: "admin_uploaded",
+  questions: [
+    {
+      question_no: "1(a)",
+      question_text: "Prove the parallelogram law.",
+      marks: 5,
+      topic: "Inner Product Spaces",
+      formula_latex: "\\|u+v\\|^2+\\|u-v\\|^2=2(\\|u\\|^2+\\|v\\|^2)",
+      diagram_required: true,
+      diagram_reference: "Vector diagram",
+      diagram_description: "Show u, v, u+v, and u-v as directed vectors.",
+    },
+  ],
+};
+
+const BOARD_MCQ_JSON_TEMPLATE = {
+  exam_name: "SSC Mathematics MCQ Board Question",
+  exam_year: 2025,
+  subject_name: "Mathematics",
+  subject_code: "SSC-MATH",
+  academic_level: "SSC",
+  group: "Common",
+  paper_type: "MCQ",
+  time: "30 minutes",
+  total_marks: 30,
+  status: "published",
+  source_type: "admin_uploaded",
+  questions: [
+    {
+      question_no: "1",
+      question_text: "What is the value of log_5 125?",
+      options: ["3", "5", "6", "8"],
+      correct_answer: "3",
+      marks: 1,
+      topic: "Logarithm",
+    },
+  ],
+};
+
+const BOARD_CQ_JSON_TEMPLATE = {
+  exam_name: "SSC Mathematics CQ Board Question",
+  exam_year: 2025,
+  subject_name: "Mathematics",
+  subject_code: "SSC-MATH",
+  academic_level: "SSC",
+  group: "Common",
+  paper_type: "CQ",
+  time: "2 hours 30 minutes",
+  total_marks: 70,
+  status: "published",
+  source_type: "admin_uploaded",
+  questions: [
+    {
+      question_no: "1",
+      section: "ক বিভাগ — বীজগণিত",
+      stem: "A = {x : x ∈ N : x² > 7 and x³ < 190}. B = {x : x ∈ N : x² ≤ 4}.",
+      topic: "Set and Relation",
+      formula_latex: "A = \\\\{x : x \\\\in \\\\mathbb{N}, x^2 > 7, x^3 < 190\\\\}",
+      diagram_required: false,
+      sub_questions: [
+        {
+          label: "ক",
+          question_text: "C = {y ∈ N : y² + 3y + 2 = 0} সেটটি তালিকা পদ্ধতিতে প্রকাশ কর।",
+          marks: 2,
+        },
+        {
+          label: "খ",
+          question_text: "P(A) নির্ণয় কর।",
+          marks: 4,
+        },
+        {
+          label: "গ",
+          question_text: "S অন্বয়টিকে তালিকা পদ্ধতিতে প্রকাশ করে ডোমেন নির্ণয় কর।",
+          marks: 4,
+        },
+      ],
+    },
+  ],
+};
+
+const BOARD_ENGLISH_FIRST_WRITTEN_JSON_TEMPLATE = {
+  exam_name: "HSC English First Paper Written Board Question",
+  exam_year: 2025,
+  subject_name: "English First Paper",
+  subject_code: "HSC-ENG-1ST",
+  academic_level: "HSC",
+  group: "Common",
+  paper_type: "WRITTEN",
+  time: "3 hours",
+  total_marks: 100,
+  status: "published",
+  source_type: "admin_uploaded",
+  questions: [
+    {
+      question_no: "1",
+      section: "Reading Test",
+      question_type: "Comprehension",
+      instruction: "Read the passage and answer the questions that follow.",
+      stem: "Education gives us knowledge and helps us become responsible citizens.",
+      question_text: "Answer the following questions in your own words.",
+      marks: 10,
+      topic: "Reading comprehension",
+      sub_questions: [
+        {
+          label: "a",
+          question_text: "What is the main purpose of education?",
+          marks: 2,
+        },
+        {
+          label: "b",
+          question_text: "How does education help a citizen?",
+          marks: 2,
+        },
+      ],
+      word_box: ["responsible", "knowledge", "citizens"],
+      table_data: {
+        headers: ["Word", "Meaning"],
+        rows: [
+          ["responsible", "accountable"],
+          ["citizen", "member of a country"],
+        ],
+      },
+      diagram_required: false,
+      diagram_reference: "",
+      diagram_description: "",
+      math_blocks: [],
+    },
+  ],
+};
+
+const BOARD_ENGLISH_SECOND_WRITTEN_JSON_TEMPLATE = {
+  exam_name: "HSC English Second Paper Written Board Question",
+  exam_year: 2025,
+  subject_name: "English Second Paper",
+  subject_code: "HSC-ENG-2ND",
+  academic_level: "HSC",
+  group: "Common",
+  paper_type: "WRITTEN",
+  time: "3 hours",
+  total_marks: 100,
+  status: "published",
+  source_type: "admin_uploaded",
+  questions: [
+    {
+      question_no: "1",
+      section: "Grammar",
+      question_type: "Transformation of Sentences",
+      instruction: "Change the sentences as directed in brackets.",
+      question_text: "Complete the transformations without changing the meaning.",
+      marks: 10,
+      topic: "Sentence transformation",
+      sub_questions: [
+        {
+          label: "a",
+          question_text: "He is too weak to walk. (Make it complex)",
+          marks: 1,
+        },
+        {
+          label: "b",
+          question_text: "No other city in Bangladesh is as busy as Dhaka. (Make it superlative)",
+          marks: 1,
+        },
+      ],
+      options: [],
+      correct_answer: "",
+      diagram_required: false,
+      diagram_reference: "",
+      diagram_description: "",
+      math_blocks: [],
+    },
+  ],
+};
+
+function getDefaultBoardTime(paperType) {
+  if (paperType === "MCQ") {
+    return "30 minutes";
+  }
+
+  if (paperType === "CQ") {
+    return "2 hours 30 minutes";
+  }
+
+  return "3 hours";
+}
+
+function getDefaultBoardMarks(paperType) {
+  if (paperType === "MCQ") {
+    return 30;
+  }
+
+  if (paperType === "CQ") {
+    return 70;
+  }
+
+  return 100;
+}
+
+function getBoardJsonTemplate(paperType) {
+  if (paperType === "MCQ") {
+    return BOARD_MCQ_JSON_TEMPLATE;
+  }
+
+  if (paperType === "WRITTEN") {
+    return {
+      exams: [
+        BOARD_ENGLISH_FIRST_WRITTEN_JSON_TEMPLATE,
+        BOARD_ENGLISH_SECOND_WRITTEN_JSON_TEMPLATE,
+      ],
+    };
+  }
+
+  return BOARD_CQ_JSON_TEMPLATE;
+}
+
+function stringifyTemplate(template) {
+  return JSON.stringify(template, null, 2);
+}
 
 function createQuestion() {
   return {
@@ -20,14 +260,28 @@ function createQuestion() {
 
 function normalizeQuestion(question = {}) {
   return {
+    ...question,
     question_no: String(question.question_no ?? "").trim(),
     question_text: String(question.question_text ?? question.text ?? question.question ?? "").trim(),
     marks: question.marks ?? "",
     topic: String(question.topic || "Uncategorized").trim(),
+    stem: question.stem ?? "",
+    section: question.section ?? "",
+    question_type: question.question_type ?? "",
+    instruction: question.instruction ?? "",
+    word_box: question.word_box ?? undefined,
+    options: Array.isArray(question.options) ? question.options : question.options,
+    correct_answer: question.correct_answer,
     formula_latex: question.formula_latex ?? "",
+    formula_display: question.formula_display ?? "",
     diagram_required: question.diagram_required ?? false,
     diagram_reference: question.diagram_reference ?? "",
     diagram_description: question.diagram_description ?? "",
+    sub_questions: Array.isArray(question.sub_questions) ? question.sub_questions : question.sub_questions,
+    math_blocks: Array.isArray(question.math_blocks) ? question.math_blocks : question.math_blocks,
+    table_data: question.table_data ?? undefined,
+    graph_required: question.graph_required ?? undefined,
+    construction_required: question.construction_required ?? undefined,
   };
 }
 
@@ -62,7 +316,12 @@ function expandImportedPayload(rawPayload) {
   }
 
   if (Array.isArray(rawPayload?.exams)) {
-    return rawPayload.exams;
+    return rawPayload.exams.map((exam) => ({
+      ...exam,
+      academic_level: exam?.academic_level || rawPayload.academic_level,
+      group: exam?.group || exam?.stream_group || rawPayload.group || rawPayload.stream_group,
+      paper_type: exam?.paper_type || rawPayload.paper_type,
+    }));
   }
 
   if (Array.isArray(rawPayload?.all_years_questions)) {
@@ -71,6 +330,9 @@ function expandImportedPayload(rawPayload) {
       exam_year: yearExam.exam_year ?? rawPayload.exam_year ?? new Date().getFullYear(),
       subject_name: rawPayload.subject_name || yearExam.subject_name || "",
       subject_code: rawPayload.subject_code || yearExam.subject_code || "",
+      academic_level: yearExam.academic_level || rawPayload.academic_level || "",
+      group: yearExam.group || yearExam.stream_group || rawPayload.group || rawPayload.stream_group || "",
+      paper_type: yearExam.paper_type || rawPayload.paper_type || "",
       time: rawPayload.time || yearExam.time || "3 hours",
       total_marks: rawPayload.total_marks ?? yearExam.total_marks ?? 80,
       questions: yearExam.questions || [],
@@ -87,12 +349,18 @@ function normalizeImportedExam(rawPayload) {
   const questions = Array.isArray(payload?.questions) ? payload.questions.map(normalizeQuestion) : [createQuestion()];
 
   return {
+    ...payload,
     exam_name: String(payload?.exam_name ?? "Final Examination").trim(),
     exam_year: payload?.exam_year ?? new Date().getFullYear(),
     subject_name: String(payload?.subject_name ?? "").trim(),
     subject_code: String(payload?.subject_code ?? "").trim(),
+    academic_level: String(payload?.academic_level ?? "").trim(),
+    group: String(payload?.group ?? payload?.stream_group ?? "").trim(),
+    paper_type: String(payload?.paper_type ?? "").trim().toUpperCase(),
     time: String(payload?.time || "3 hours").trim(),
     total_marks: payload?.total_marks ?? 80,
+    status: payload?.status || "draft",
+    source_type: payload?.source_type || "admin_uploaded",
     questions: questions.length > 0 ? questions : [createQuestion()],
   };
 }
@@ -110,28 +378,99 @@ function buildSubjectCodeLookup(exams) {
   }, new Map());
 }
 
-function normalizeSingleExamPayload(rawExam) {
+function normalizeSingleExamPayload(rawExam, options = {}) {
+  const scopeType = options.scopeType || SCOPE_TYPES.UNIVERSITY;
   const normalizedExam = normalizeImportedExam(rawExam);
   const totalMarks = Number(normalizedExam.total_marks);
   const questions = normalizedExam.questions
     .map((question) => {
       const normalizedQuestion = {
+        ...question,
         question_no: String(question.question_no).trim(),
         question_text: String(question.question_text).trim(),
-        marks: Number(question.marks),
+        marks: question.marks === "" || question.marks === undefined || question.marks === null ? "" : Number(question.marks),
         topic: String(question.topic || "Uncategorized").trim(),
+        stem: question.stem ?? "",
+        section: question.section ?? "",
+        question_type: question.question_type ?? "",
+        instruction: question.instruction ?? "",
+        word_box: question.word_box,
+        options: question.options,
+        correct_answer: question.correct_answer,
         formula_latex: normalizeOptionalText(question.formula_latex, "formula_latex"),
+        formula_display: question.formula_display ?? undefined,
         diagram_required: normalizeDiagramRequired(question.diagram_required),
         diagram_reference: normalizeOptionalText(question.diagram_reference, "diagram_reference"),
         diagram_description: normalizeOptionalText(question.diagram_description, "diagram_description"),
+        sub_questions: question.sub_questions,
+        math_blocks: question.math_blocks,
+        table_data: question.table_data,
+        graph_required: question.graph_required,
+        construction_required: question.construction_required,
       };
+
+      if (scopeType === SCOPE_TYPES.BOARD && normalizedExam.paper_type === "MCQ" && normalizedQuestion.marks === "") {
+        normalizedQuestion.marks = 1;
+      }
 
       return normalizedQuestion;
     })
-    .filter((question) => question.question_no && question.question_text && Number.isFinite(question.marks));
+    .filter((question) => {
+      if (!question.question_no) {
+        return false;
+      }
+
+      if (scopeType === SCOPE_TYPES.BOARD && normalizedExam.paper_type === "CQ") {
+        return Boolean(question.question_text || question.stem || (Array.isArray(question.sub_questions) && question.sub_questions.length > 0));
+      }
+
+      if (scopeType === SCOPE_TYPES.BOARD && normalizedExam.paper_type === "WRITTEN") {
+        return Boolean(
+          question.question_text ||
+          question.instruction ||
+          question.stem ||
+          (Array.isArray(question.sub_questions) && question.sub_questions.length > 0)
+        );
+      }
+
+      return question.question_text && Number.isFinite(question.marks);
+    });
 
   if (!normalizedExam.exam_name || !normalizedExam.subject_name || !normalizedExam.subject_code) {
     throw new Error("Exam name, subject name, and subject code are required.");
+  }
+
+  if (scopeType === SCOPE_TYPES.BOARD) {
+    if (!normalizedExam.academic_level || !normalizedExam.group || !normalizedExam.paper_type) {
+      throw new Error("Academic level, group, and paper type are required for SSC/HSC uploads.");
+    }
+
+    if (!PAPER_TYPES.includes(normalizedExam.paper_type)) {
+      throw new Error("Paper type must be CQ, MCQ, or WRITTEN.");
+    }
+
+    if (normalizedExam.paper_type === "MCQ") {
+      const invalidQuestionIndex = questions.findIndex(
+        (question) => !Array.isArray(question.options) || question.options.length === 0,
+      );
+
+      if (invalidQuestionIndex >= 0) {
+        throw new Error(`MCQ question #${invalidQuestionIndex + 1} must include options.`);
+      }
+    }
+
+    if (normalizedExam.paper_type === "WRITTEN") {
+      const invalidQuestionIndex = questions.findIndex(
+        (question) => !question.question_text &&
+          !question.instruction &&
+          !question.stem &&
+          (!Array.isArray(question.sub_questions) || question.sub_questions.length === 0),
+      );
+
+      if (invalidQuestionIndex >= 0) {
+        throw new Error(`WRITTEN question #${invalidQuestionIndex + 1} must include question_text, instruction, stem, or sub_questions.`);
+      }
+    }
   }
 
   if (questions.length === 0) {
@@ -144,15 +483,18 @@ function normalizeSingleExamPayload(rawExam) {
     exam_year: Number(normalizedExam.exam_year) || new Date().getFullYear(),
     subject_name: normalizedExam.subject_name,
     subject_code: normalizedExam.subject_code,
-    time: normalizedExam.time || "3 hours",
-    total_marks: Number.isFinite(totalMarks) && totalMarks > 0 ? totalMarks : 80,
+    academic_level: normalizedExam.academic_level || undefined,
+    group: normalizedExam.group || undefined,
+    paper_type: normalizedExam.paper_type || undefined,
+    time: normalizedExam.time || getDefaultBoardTime(normalizedExam.paper_type),
+    total_marks: Number.isFinite(totalMarks) && totalMarks > 0 ? totalMarks : normalizedExam.paper_type ? getDefaultBoardMarks(normalizedExam.paper_type) : 80,
     questions,
-    status: rawExam?.status || "draft",
-    source_type: rawExam?.source_type || "admin_uploaded",
+    status: normalizedExam.status || "draft",
+    source_type: normalizedExam.source_type || "admin_uploaded",
   };
 }
 
-function normalizeBatchPayload(rawPayload) {
+function normalizeBatchPayload(rawPayload, options = {}) {
   const expandedPayload = expandImportedPayload(rawPayload);
 
   if (!Array.isArray(expandedPayload)) {
@@ -172,7 +514,7 @@ function normalizeBatchPayload(rawPayload) {
     return normalizeSingleExamPayload({
       ...rawExam,
       subject_code: subjectCode,
-    });
+    }, options);
   });
 }
 
@@ -224,43 +566,6 @@ function validateJsonFile(file) {
   return "";
 }
 
-function normalizeItems(payload, key) {
-  const items = Array.isArray(payload) ? payload : payload?.[key] || payload?.items || payload?.data || [];
-  return Array.isArray(items) ? items : [];
-}
-
-function getUniversityId(university) {
-  return university.id ?? university.university_id;
-}
-
-function getDepartmentId(department) {
-  return department.id ?? department.department_id;
-}
-
-function getUniversityLabel(university) {
-  const name = university.university_name || university.name || "";
-  const shortName = university.short_name || "";
-  return shortName ? `${name} (${shortName})` : name;
-}
-
-function getDepartmentLabel(department) {
-  const name = department.department_name || department.name || "";
-  const shortName = department.short_name || "";
-  return shortName ? `${name} (${shortName})` : name;
-}
-
-function normalizeSubjects(payload) {
-  const rawSubjects = Array.isArray(payload) ? payload : payload?.subjects || payload?.items || payload?.data || [];
-  return rawSubjects
-    .map((subject) => ({
-      ...subject,
-      subject_id: subject?.subject_id ?? subject?.id ?? subject?.subjectId ?? null,
-      subject_code: String(subject?.subject_code ?? subject?.code ?? subject?.subjectCode ?? "").trim(),
-      subject_name: String(subject?.subject_name ?? subject?.name ?? subject?.subjectName ?? "").trim(),
-    }))
-    .filter((subject) => subject.subject_id && subject.subject_code);
-}
-
 function UploadPage() {
   const [exam, setExam] = useState(() => ({
     exam_name: "Final Examination",
@@ -305,6 +610,12 @@ function UploadPage() {
   const [universitiesLoading, setUniversitiesLoading] = useState(false);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [scopeError, setScopeError] = useState("");
+  const [scopeType, setScopeType] = useState(SCOPE_TYPES.UNIVERSITY);
+  const [boardScope, setBoardScope] = useState({
+    academic_level: "SSC",
+    group: "Common",
+    paper_type: "CQ",
+  });
 
   useEffect(() => {
     async function loadBootData() {
@@ -316,8 +627,8 @@ function UploadPage() {
           apiEndpoints.getUniversities(),
         ]);
         setHealthStatus(healthResponse.data?.status === "ok" ? "online" : "degraded");
-        setSubjects(normalizeSubjects(subjectsResponse.data));
-        setUniversities(normalizeItems(universitiesResponse.data, "universities"));
+        setSubjects(normalizeSubjectList(subjectsResponse.data));
+        setUniversities(normalizeUniversities(universitiesResponse.data));
       } catch (error) {
         console.error(error);
         setSubjects([]);
@@ -351,7 +662,7 @@ function UploadPage() {
       })
       .then((response) => {
         if (active && response) {
-          setDepartments(normalizeItems(response.data, "departments"));
+          setDepartments(normalizeDepartments(response.data));
         }
       })
       .catch((error) => {
@@ -373,6 +684,14 @@ function UploadPage() {
   }, [selectedUniversity]);
 
   function getImportScope() {
+    if (scopeType === SCOPE_TYPES.BOARD) {
+      return {
+        academic_level: boardScope.academic_level,
+        group: boardScope.group,
+        paper_type: boardScope.paper_type,
+      };
+    }
+
     return {
       university_id: Number(selectedUniversity),
       department_id: Number(selectedDepartment),
@@ -380,6 +699,16 @@ function UploadPage() {
   }
 
   function validateImportScope() {
+    if (scopeType === SCOPE_TYPES.BOARD) {
+      if (!boardScope.academic_level || !boardScope.group || !boardScope.paper_type) {
+        setScopeError("Please select academic level, group, and paper type.");
+        return false;
+      }
+
+      setScopeError("");
+      return true;
+    }
+
     if (!selectedUniversity) {
       setScopeError("Please select a university first.");
       return false;
@@ -414,7 +743,8 @@ function UploadPage() {
       throw new Error("Invalid JSON. Paste or upload valid JSON before importing.");
     }
 
-    const exams = Array.isArray(parsedJson) ? parsedJson : [parsedJson];
+    const expandedPayload = expandImportedPayload(parsedJson);
+    const exams = Array.isArray(expandedPayload) ? expandedPayload : [expandedPayload];
     const hasOnlyExamObjects = exams.length > 0 && exams.every(
       (item) => item && typeof item === "object" && !Array.isArray(item),
     );
@@ -426,22 +756,53 @@ function UploadPage() {
     return { parsedJson, exams };
   }
 
+  function applyBoardScopeToExam(rawExam) {
+    if (scopeType !== SCOPE_TYPES.BOARD) {
+      return rawExam;
+    }
+
+    const paperType = String(rawExam?.paper_type || boardScope.paper_type || "").trim().toUpperCase();
+    return {
+      ...rawExam,
+      academic_level: rawExam?.academic_level || boardScope.academic_level,
+      group: rawExam?.group || rawExam?.stream_group || boardScope.group,
+      paper_type: paperType,
+      time: rawExam?.time || getDefaultBoardTime(paperType),
+      total_marks: rawExam?.total_marks ?? getDefaultBoardMarks(paperType),
+      questions: Array.isArray(rawExam?.questions)
+        ? rawExam.questions.map((question) => ({
+            ...question,
+            marks: paperType === "MCQ" && (question.marks === undefined || question.marks === null || question.marks === "") ? 1 : question.marks,
+          }))
+        : rawExam?.questions,
+    };
+  }
+
+  function normalizeExamsForScope(exams) {
+    const scopedExams = exams.map(applyBoardScopeToExam);
+    return normalizeBatchPayload(scopedExams, { scopeType });
+  }
+
   function buildImportPayload(exams) {
     if (!validateImportScope()) {
       return null;
     }
 
-    const payload = {
-      university_id: Number(selectedUniversity),
-      department_id: Number(selectedDepartment),
-      exams,
-    };
+    const normalizedExams = scopeType === SCOPE_TYPES.BOARD ? normalizeExamsForScope(exams) : exams;
+    const payload = scopeType === SCOPE_TYPES.BOARD
+      ? { exams: normalizedExams }
+      : {
+          university_id: Number(selectedUniversity),
+          department_id: Number(selectedDepartment),
+          exams: normalizedExams,
+        };
 
     console.log("Import payload:", {
+      scope_type: scopeType,
       university_id: payload.university_id,
       department_id: payload.department_id,
-      examsCount: exams.length,
-      firstExamKeys: Object.keys(exams[0] || {}),
+      examsCount: normalizedExams.length,
+      firstExamKeys: Object.keys(normalizedExams[0] || {}),
     });
 
     return payload;
@@ -492,7 +853,9 @@ function UploadPage() {
     // Detect if this is a batch upload (array) or single exam
     if (Array.isArray(expandedPayload)) {
       try {
-        normalizeBatchPayload(expandedPayload);
+        scopeType === SCOPE_TYPES.BOARD
+          ? normalizeExamsForScope(expandedPayload)
+          : normalizeBatchPayload(expandedPayload);
         setIsBatchMode(true);
         setMessage(`Batch mode detected: ${expandedPayload.length} exam(s) ready to upload.`);
         setJsonError("");
@@ -503,7 +866,7 @@ function UploadPage() {
       }
     } else {
       setIsBatchMode(false);
-      const importedExam = normalizeImportedExam(expandedPayload);
+      const importedExam = normalizeImportedExam(applyBoardScopeToExam(expandedPayload));
       setExam(importedExam);
       setPublishSubjectCode(importedExam.subject_code);
       setPublishSubjectId("");
@@ -614,6 +977,29 @@ function UploadPage() {
     };
   }, [exam.questions]);
 
+  const jsonTemplate = useMemo(() => {
+    if (scopeType === SCOPE_TYPES.UNIVERSITY) {
+      return stringifyTemplate(UNIVERSITY_JSON_TEMPLATE);
+    }
+
+    return stringifyTemplate(getBoardJsonTemplate(boardScope.paper_type));
+  }, [boardScope.paper_type, scopeType]);
+
+  function updateBoardScope(field, value) {
+    setBoardScope((current) => {
+      const next = { ...current, [field]: value };
+      if (field === "paper_type") {
+        setExam((currentExam) => ({
+          ...currentExam,
+          time: getDefaultBoardTime(value),
+          total_marks: getDefaultBoardMarks(value),
+        }));
+      }
+      return next;
+    });
+    setScopeError("");
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -633,7 +1019,7 @@ function UploadPage() {
       setUploadResponse(null);
 
       try {
-        const normalizedExam = normalizeSingleExamPayload(exam);
+        const normalizedExam = normalizeSingleExamPayload(applyBoardScopeToExam(exam), { scopeType });
         const payload = buildImportPayload([normalizedExam]);
         if (!payload) {
           return;
@@ -657,8 +1043,8 @@ function UploadPage() {
           exam_year: new Date().getFullYear(),
           subject_name: "",
           subject_code: "",
-          time: "3 hours",
-          total_marks: 60,
+          time: scopeType === SCOPE_TYPES.BOARD ? getDefaultBoardTime(boardScope.paper_type) : "3 hours",
+          total_marks: scopeType === SCOPE_TYPES.BOARD ? getDefaultBoardMarks(boardScope.paper_type) : 60,
           questions: [createQuestion()],
         });
         setPublishSubjectCode("");
@@ -708,8 +1094,8 @@ function UploadPage() {
           exam_year: new Date().getFullYear(),
           subject_name: "",
           subject_code: "",
-          time: "3 hours",
-          total_marks: 60,
+          time: scopeType === SCOPE_TYPES.BOARD ? getDefaultBoardTime(boardScope.paper_type) : "3 hours",
+          total_marks: scopeType === SCOPE_TYPES.BOARD ? getDefaultBoardMarks(boardScope.paper_type) : 60,
           questions: [createQuestion()],
         });
       } catch (error) {
@@ -729,7 +1115,7 @@ function UploadPage() {
   }
 
   async function handlePublishSubject() {
-    const selectedSubject = subjects.find((subject) => String(subject.subject_id) === String(publishSubjectId));
+    const selectedSubject = subjects.find((subject) => String(subject.id) === String(publishSubjectId));
 
     if (!selectedSubject) {
       setPublishMessage("Select a subject to publish.");
@@ -741,7 +1127,7 @@ function UploadPage() {
     setPublishMessage(`Publishing subject data for ${selectedSubject.subject_code}...`);
 
     try {
-      const response = await apiEndpoints.publishSubject(selectedSubject.subject_id);
+      const response = await apiEndpoints.publishSubject(selectedSubject.id);
       const data = response.data || {};
       setPublishResult(data);
       setPublishMessage(formatValue(data.message, `Subject ${selectedSubject.subject_code} published successfully.`));
@@ -1091,64 +1477,143 @@ function UploadPage() {
             </div>
 
             <div className="grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2">
-              <label className="space-y-2 text-sm font-medium text-slate-700">
-                University
+              <label className="space-y-2 text-sm font-medium text-slate-700 sm:col-span-2">
+                Upload scope
                 <select
-                  value={selectedUniversity}
+                  value={scopeType}
                   onChange={(event) => {
-                    setSelectedUniversity(event.target.value);
-                    setSelectedDepartment("");
-                    setDepartments([]);
+                    const nextScopeType = event.target.value;
+                    setScopeType(nextScopeType);
                     setScopeError("");
+                    setIsBatchMode(false);
+                    setExam((currentExam) => ({
+                      ...currentExam,
+                      time: nextScopeType === SCOPE_TYPES.BOARD ? getDefaultBoardTime(boardScope.paper_type) : "3 hours",
+                      total_marks: nextScopeType === SCOPE_TYPES.BOARD ? getDefaultBoardMarks(boardScope.paper_type) : 60,
+                    }));
                   }}
-                  disabled={universitiesLoading}
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
                 >
-                  <option value="">{universitiesLoading ? "Loading universities..." : "Select university"}</option>
-                  {universities.map((university) => {
-                    const id = getUniversityId(university);
-                    return (
-                      <option key={id || getUniversityLabel(university)} value={id}>
-                        {getUniversityLabel(university)}
-                      </option>
-                    );
-                  })}
+                  <option value={SCOPE_TYPES.UNIVERSITY}>University / College</option>
+                  <option value={SCOPE_TYPES.BOARD}>SSC / HSC Board</option>
                 </select>
               </label>
 
-              <label className="space-y-2 text-sm font-medium text-slate-700">
-                Department
-                <select
-                  value={selectedDepartment}
-                  onChange={(event) => {
-                    setSelectedDepartment(event.target.value);
-                    setScopeError("");
-                  }}
-                  disabled={!selectedUniversity || departmentsLoading || departments.length === 0}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
-                >
-                  <option value="">
-                    {!selectedUniversity
-                      ? "Select university first"
-                      : departmentsLoading
-                        ? "Loading departments..."
-                        : "Select department"}
-                  </option>
-                  {departments.map((department) => {
-                    const id = getDepartmentId(department);
-                    return (
-                      <option key={id || getDepartmentLabel(department)} value={id}>
-                        {getDepartmentLabel(department)}
+              {scopeType === SCOPE_TYPES.UNIVERSITY ? (
+                <>
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    University
+                    <select
+                      value={selectedUniversity}
+                      onChange={(event) => {
+                        setSelectedUniversity(event.target.value);
+                        setSelectedDepartment("");
+                        setDepartments([]);
+                        setScopeError("");
+                      }}
+                      disabled={universitiesLoading}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                    >
+                      <option value="">{universitiesLoading ? "Loading universities..." : "Select university"}</option>
+                      {universities.map((university) => {
+                        const id = getLookupId(university);
+                        return (
+                          <option key={id || getLookupLabel(university)} value={id}>
+                            {getLookupLabel(university)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    Department
+                    <select
+                      value={selectedDepartment}
+                      onChange={(event) => {
+                        setSelectedDepartment(event.target.value);
+                        setScopeError("");
+                      }}
+                      disabled={!selectedUniversity || departmentsLoading || departments.length === 0}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                    >
+                      <option value="">
+                        {!selectedUniversity
+                          ? "Select university first"
+                          : departmentsLoading
+                            ? "Loading departments..."
+                            : "Select department"}
                       </option>
-                    );
-                  })}
-                </select>
-              </label>
+                      {departments.map((department) => {
+                        const id = getLookupId(department);
+                        return (
+                          <option key={id || getLookupLabel(department)} value={id}>
+                            {getLookupLabel(department)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+
+                  {selectedUniversity && !departmentsLoading && departments.length === 0 && !scopeError && (
+                    <p className="text-sm text-amber-700 sm:col-span-2">No departments found for this university.</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    Academic level
+                    <select
+                      value={boardScope.academic_level}
+                      onChange={(event) => updateBoardScope("academic_level", event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                    >
+                      {ACADEMIC_LEVELS.map((level) => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    Group
+                    <select
+                      value={boardScope.group}
+                      onChange={(event) => updateBoardScope("group", event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                    >
+                      {BOARD_GROUPS.map((group) => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="space-y-2 text-sm font-medium text-slate-700">
+                    Paper type
+                    <select
+                      value={boardScope.paper_type}
+                      onChange={(event) => updateBoardScope("paper_type", event.target.value)}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-cyan-400 focus:bg-white"
+                    >
+                      {PAPER_TYPES.map((paperType) => (
+                        <option key={paperType} value={paperType}>{paperType}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="space-y-2 rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-sm text-slate-600">
+                    <p>Upload CQ, MCQ, and WRITTEN separately. Example: SSC Math 2025 MCQ and SSC Math 2025 CQ are two separate uploads.</p>
+                    <p>
+                      {boardScope.paper_type === "MCQ"
+                        ? "MCQ paper usually has 30 marks and each question should include options. correct_answer is optional."
+                        : boardScope.paper_type === "WRITTEN"
+                          ? "WRITTEN papers can use section, question_type, instruction, stem, word_box, table_data, and sub_questions. correct_answer is optional."
+                          : "CQ paper usually has 70 marks and can use stem and sub_questions."}
+                    </p>
+                  </div>
+                </>
+              )}
 
               {scopeError && <p className="text-sm text-rose-600 sm:col-span-2">{scopeError}</p>}
-              {selectedUniversity && !departmentsLoading && departments.length === 0 && !scopeError && (
-                <p className="text-sm text-amber-700 sm:col-span-2">No departments found for this university.</p>
-              )}
             </div>
 
             {isBatchMode ? (
@@ -1343,7 +1808,7 @@ function UploadPage() {
                   setJsonFile(null);
                   setJsonImport(event.target.value);
                 }}
-                placeholder='{"exam_name":"Final Examination","subject_code":"CSE-421","questions":[{"question_no":"1(a)","question_text":"Prove the parallelogram law.","marks":5,"topic":"Inner Product Spaces","formula_latex":"\\\\|u+v\\\\|^2+\\\\|u-v\\\\|^2=2(\\\\|u\\\\|^2+\\\\|v\\\\|^2)","diagram_required":true,"diagram_reference":"Vector diagram","diagram_description":"Show u, v, u+v, and u-v as directed vectors."}]}'
+                placeholder={jsonTemplate}
                 className="min-h-48 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm leading-6 outline-none focus:border-cyan-400"
               />
               <button
@@ -1398,7 +1863,7 @@ function UploadPage() {
                 value={publishSubjectId}
                 onChange={(event) => {
                   const subjectId = event.target.value;
-                  const subject = subjects.find((item) => String(item.subject_id) === String(subjectId));
+                  const subject = subjects.find((item) => String(item.id) === String(subjectId));
                   setPublishSubjectId(subjectId);
                   setPublishSubjectCode(subject?.subject_code || "");
                 }}
@@ -1406,8 +1871,8 @@ function UploadPage() {
               >
                 <option value="">Select subject</option>
                 {subjects.map((subject) => (
-                  <option key={subject.subject_id} value={subject.subject_id}>
-                    {formatValue(subject.subject_code)} - {formatValue(subject.subject_name)}
+                  <option key={subject.id || subject.subject_code} value={subject.id}>
+                    {formatSubjectLabel(subject)}
                   </option>
                 ))}
               </select>
@@ -1443,9 +1908,9 @@ function UploadPage() {
               <p className="font-semibold">Example subjects loaded</p>
               <div className="mt-3 space-y-2">
                 {subjects.slice(0, 4).map((subject, index) => (
-                  <div key={formatValue(subject.subject_id, index)} className="flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                    <span className="break-words font-medium text-slate-900">{formatValue(subject.subject_code)}</span>
-                    <span className="break-words text-slate-500 sm:text-right">{formatValue(subject.subject_name)}</span>
+                  <div key={formatValue(subject.id, index)} className="flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                    <span className="break-words font-medium text-slate-900">{formatSubjectLabel(subject)}</span>
+                    <span className="break-words text-slate-500 sm:text-right">{formatValue(subject.id)}</span>
                   </div>
                 ))}
                 {subjects.length === 0 && <p className="text-cyan-800/80">No subjects loaded yet.</p>}
