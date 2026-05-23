@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { apiEndpoints, getApiStatus } from "../api/api";
 import MathRenderer from "../components/MathRenderer";
-import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { getDefaultPaperType, hasPaperTypeSupport, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
@@ -402,6 +402,9 @@ function SuggestionPrompt({ item, paperType }) {
           <MathRenderer value={questionText} className="prose max-w-none" />
         </h2>
       )}
+
+      <DiagramRenderer question={item} />
+
       {resolvedPaperType === "WRITTEN" && wordBox.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Word Box</p>

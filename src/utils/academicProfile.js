@@ -7,6 +7,15 @@ const ACADEMIC_LEVEL_LABELS = {
   admission: "Admission",
 };
 
+const API_ACADEMIC_LEVEL_VALUES = {
+  university: "UNIVERSITY",
+  ssc: "SSC",
+  hsc: "HSC",
+  school: "SCHOOL",
+  diploma: "DIPLOMA",
+  admission: "ADMISSION",
+};
+
 export const VISIBLE_ACADEMIC_LEVEL_OPTIONS = [
   { value: "university", label: ACADEMIC_LEVEL_LABELS.university },
   { value: "ssc", label: ACADEMIC_LEVEL_LABELS.ssc },
@@ -52,6 +61,11 @@ function normalizeString(value) {
 export function normalizeAcademicLevel(value) {
   const normalized = normalizeString(value).toLowerCase();
   return Object.prototype.hasOwnProperty.call(ACADEMIC_LEVEL_LABELS, normalized) ? normalized : "";
+}
+
+export function toApiAcademicLevel(value) {
+  const normalized = normalizeAcademicLevel(value);
+  return API_ACADEMIC_LEVEL_VALUES[normalized] || undefined;
 }
 
 export function getAcademicLevelLabel(value) {
@@ -129,7 +143,7 @@ export function isAcademicProfileComplete(user = {}) {
   }
 
   if (isSecondaryAcademicProfile(user)) {
-    return Boolean(user?.curriculum && user?.stream_group && user?.class_level);
+    return Boolean(user?.curriculum && user?.stream_group);
   }
 
   return Boolean(user?.university_id && user?.department_id);
@@ -152,7 +166,7 @@ export function buildAcademicProfilePayload(values = {}) {
 
   if (academicLevel === "university") {
     return {
-      academic_level: "university",
+      academic_level: toApiAcademicLevel(academicLevel),
       institution_type: "university",
       curriculum: "university_specific",
       university_id: values?.university_id ? Number(values.university_id) : undefined,
@@ -163,17 +177,23 @@ export function buildAcademicProfilePayload(values = {}) {
   }
 
   if (academicLevel === "ssc" || academicLevel === "hsc") {
-    return {
-      academic_level: academicLevel,
+    const payload = {
+      academic_level: toApiAcademicLevel(academicLevel),
       institution_type: academicLevel === "ssc" ? "school" : "college",
       curriculum: normalizeString(values?.curriculum) || undefined,
       stream_group: normalizeStudentStreamGroup(values?.stream_group) || undefined,
-      class_level: normalizeString(values?.class_level) || undefined,
     };
+
+    const classLevel = normalizeString(values?.class_level);
+    if (classLevel) {
+      payload.class_level = classLevel;
+    }
+
+    return payload;
   }
 
   return {
-    academic_level: academicLevel || undefined,
+    academic_level: toApiAcademicLevel(academicLevel),
   };
 }
 
@@ -182,7 +202,7 @@ export function buildSubjectScopeParams(user = {}, baseParams = {}) {
   const academicLevel = normalizeAcademicLevel(user?.academic_level);
 
   if (academicLevel === "university" || (!academicLevel && Boolean(user?.university_id && user?.department_id))) {
-    params.academic_level = academicLevel || "university";
+    params.academic_level = toApiAcademicLevel(academicLevel || "university");
     params.institution_type = user?.institution_type || "university";
     params.curriculum = user?.curriculum || "university_specific";
 
@@ -198,7 +218,7 @@ export function buildSubjectScopeParams(user = {}, baseParams = {}) {
   }
 
   if (academicLevel === "ssc" || academicLevel === "hsc") {
-    params.academic_level = academicLevel;
+    params.academic_level = toApiAcademicLevel(academicLevel);
     params.institution_type = user?.institution_type || (academicLevel === "ssc" ? "school" : "college");
 
     if (user?.curriculum !== undefined && user?.curriculum !== null && user?.curriculum !== "") {

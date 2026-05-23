@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
@@ -251,6 +251,7 @@ function TopicsPage() {
                           {topic.important_questions.slice(0, 3).map((question, questionIndex) => (
                             <div key={question.id || questionIndex} className="rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-slate-700">
                               <p className="whitespace-pre-line break-words">{question.question_text || question.text || question.question || question}</p>
+                              <DiagramRenderer question={question} />
                               <QuestionExtras item={question} />
                             </div>
                           ))}
@@ -308,6 +309,7 @@ function TopicsPage() {
                     {analysis.sample_questions.map((question, index) => (
                       <div key={index} className="break-words rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
                         {question.question_text || question.text || question}
+                        <DiagramRenderer question={question} />
                         <QuestionExtras item={question} />
                       </div>
                     ))}

@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { apiEndpoints, getAnswerBuilderErrorKind } from "../api/api";
 import AnswerWarningBanner from "../components/common/AnswerWarningBanner";
-import { Badge, Button, Card, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, isMissingStudentScopeError } from "../utils/auth";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
@@ -612,17 +612,14 @@ function GenerateAnswerPage() {
               )}
 
               {answerResult?.diagram_required && (
-                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">Drawing Instruction</p>
-                    {answerResult.diagram_type && (
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-800">
-                        {answerResult.diagram_type}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap">{answerResult.diagram_instruction || "Diagram Required."}</p>
-                </div>
+                <DiagramRenderer
+                  question={answerResult}
+                  diagram_required={answerResult.diagram_required}
+                  diagram_type={answerResult.diagram_type}
+                  diagram_svg={answerResult.diagram_svg}
+                  diagram_description={answerResult.diagram_description}
+                  diagram_reference={answerResult.diagram_reference}
+                />
               )}
 
               {answerResult?.mermaid_code && (
@@ -632,16 +629,6 @@ function GenerateAnswerPage() {
                     <code>{answerResult.mermaid_code}</code>
                   </pre>
                 </div>
-              )}
-
-              {(answerResult?.diagram_reference || answerResult?.diagram_description) && (
-                <QuestionExtras
-                  item={{
-                    diagram_required: answerResult.diagram_required,
-                    diagram_reference: answerResult.diagram_reference,
-                    diagram_description: answerResult.diagram_description,
-                  }}
-                />
               )}
 
               {relatedQuestions.length > 0 && (
@@ -655,6 +642,7 @@ function GenerateAnswerPage() {
                         <p className="whitespace-pre-line break-words text-sm leading-6 text-slate-700">
                           {relatedQuestion.question_text || relatedQuestion.question || relatedQuestion.text || "Related question"}
                         </p>
+                        <DiagramRenderer question={relatedQuestion} />
                         <QuestionExtras item={relatedQuestion} />
                         <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
                           {relatedQuestion.topic && <span className="rounded-full bg-slate-100 px-3 py-1">{relatedQuestion.topic}</span>}

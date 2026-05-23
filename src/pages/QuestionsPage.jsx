@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { Link, useNavigate } from "react-router-dom";
 import { apiEndpoints } from "../api/api";
-import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
 import { getDefaultPaperType, hasPaperTypeSupport, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
@@ -156,6 +156,8 @@ function QuestionBody({ question, paperType }) {
           {questionText}
         </p>
       )}
+
+      <DiagramRenderer question={question} />
 
       {!question?.stem && !questionText && resolvedPaperType !== "WRITTEN" && (
         <p className="text-sm leading-7 text-slate-500 sm:text-base">No question text provided.</p>

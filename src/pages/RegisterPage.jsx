@@ -62,7 +62,7 @@ function RegisterPage() {
   const isSecondaryLevel = academicLevel === "ssc" || academicLevel === "hsc";
   const isAcademicScopeReady =
     (isUniversityLevel && Boolean(form.university_id && form.department_id)) ||
-    (isSecondaryLevel && Boolean(form.curriculum && form.stream_group && form.class_level));
+    (isSecondaryLevel && Boolean(form.curriculum && form.stream_group));
 
   const academicLevelOptions = VISIBLE_ACADEMIC_LEVEL_OPTIONS;
 
@@ -210,8 +210,6 @@ function RegisterPage() {
         setError("Curriculum is required.");
       } else if (isSecondaryLevel && !form.stream_group) {
         setError("Group is required.");
-      } else if (isSecondaryLevel && !form.class_level) {
-        setError("Class level is required.");
       } else {
         setError("All fields are required.");
       }
@@ -268,13 +266,11 @@ function RegisterPage() {
         return;
       }
 
-      if (isSecondaryLevel && (!form.curriculum || !form.stream_group || !form.class_level)) {
+      if (isSecondaryLevel && (!form.curriculum || !form.stream_group)) {
         if (!form.curriculum) {
           setError("Curriculum is required.");
-        } else if (!form.stream_group) {
-          setError("Group is required.");
         } else {
-          setError("Class level is required.");
+          setError("Group is required.");
         }
         setLoading(false);
         return;
@@ -463,14 +459,13 @@ function RegisterPage() {
                 </label>
 
                 <label className="block text-sm font-medium text-slate-700">
-                  Class level
+                  Class level (optional)
                   <select
                     value={form.class_level}
                     onChange={(event) => updateField("class_level", event.target.value)}
-                    required
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                   >
-                    <option value="">Select class level</option>
+                    <option value="">No class level</option>
                     {(academicLevel === "ssc" ? CLASS_LEVEL_OPTIONS.ssc : CLASS_LEVEL_OPTIONS.hsc).map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}

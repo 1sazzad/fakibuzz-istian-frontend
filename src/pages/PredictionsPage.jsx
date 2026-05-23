@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { getApiErrorMessage } from "../utils/auth";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
@@ -234,6 +234,8 @@ function PredictionsPage() {
                     <Badge tone="indigo">{scoreText}</Badge>
                   </div>
 
+                  <DiagramRenderer question={item} />
+
                   <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
                     <div
                       className="h-full rounded-full bg-indigo-500 transition-all"
@@ -269,6 +271,7 @@ function PredictionsPage() {
                       {item.related_questions.slice(0, 4).map((question, questionIndex) => (
                         <div key={question.id || questionIndex} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                           <p className="whitespace-pre-line break-words leading-6">{question.question_text || question.text || question.question || question}</p>
+                          <DiagramRenderer question={question} />
                           <QuestionExtras item={question} />
                           <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
                             {question.exam_year && <span>{question.exam_year}</span>}
@@ -287,6 +290,8 @@ function PredictionsPage() {
                       subject_code: item.subject_code || selectedSubject,
                       formula_latex: item.formula_latex || "",
                       diagram_required: Boolean(item.diagram_required),
+                      diagram_type: item.diagram_type || "",
+                      diagram_svg: item.diagram_svg || "",
                       diagram_reference: item.diagram_reference || "",
                       diagram_description: item.diagram_description || "",
                     } })}

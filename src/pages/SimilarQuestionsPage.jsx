@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Card, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
 
@@ -167,6 +167,7 @@ function SimilarQuestionsPage() {
                     {result.score ?? result.similarity ?? result.confidence ?? result.distance ?? "Match"}
                   </Badge>
                 </div>
+                <DiagramRenderer question={result} />
                 <QuestionExtras item={result} />
 
                 <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">

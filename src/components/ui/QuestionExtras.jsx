@@ -72,11 +72,10 @@ function QuestionExtras({ item, className = "", formulaLabel = "Formula" }) {
   const formulaLatex = getOptionalText(item?.formula_latex);
   const diagramRequired = isDiagramRequired(item?.diagram_required);
   const diagramReference = getOptionalText(item?.diagram_reference);
-  const diagramDescription = getOptionalText(item?.diagram_description);
   const institution = getInstitutionDisplay(item);
   const showInstitution = hasInstitutionMetadata(item);
 
-  if (!formulaLatex && !diagramRequired && !diagramReference && !diagramDescription && !showInstitution) {
+  if (!formulaLatex && !diagramRequired && !diagramReference && !showInstitution) {
     return null;
   }
 
@@ -124,11 +123,6 @@ function QuestionExtras({ item, className = "", formulaLabel = "Formula" }) {
         </div>
       )}
 
-      {diagramDescription && (
-        <p className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-          <span className="font-semibold text-slate-950">Drawing Instruction:</span> {diagramDescription}
-        </p>
-      )}
     </div>
   );
 }

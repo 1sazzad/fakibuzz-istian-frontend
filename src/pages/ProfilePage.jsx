@@ -129,7 +129,7 @@ function ProfilePage() {
     !saving &&
       academicLevel &&
       ((isUniversityLevel && selectedUniversity && selectedDepartment) ||
-        (isSecondaryLevel && form.curriculum && form.stream_group && form.class_level)),
+        (isSecondaryLevel && form.curriculum && form.stream_group)),
   );
 
   const selectedUniversityName = useMemo(() => {
@@ -344,13 +344,13 @@ function ProfilePage() {
                   </label>
 
                   <label className="space-y-2 text-sm font-medium text-slate-700">
-                    Class level
+                    Class level (optional)
                     <select
                       value={form.class_level}
                       onChange={(event) => updateField("class_level", event.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                     >
-                      <option value="">Select class level</option>
+                      <option value="">No class level</option>
                       {(academicLevel === "ssc" ? CLASS_LEVEL_OPTIONS.ssc : CLASS_LEVEL_OPTIONS.hsc).map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
