@@ -27,8 +27,6 @@ const KATEX_OPTIONS = {
   trust: false,
 };
 
-const SUB_QUESTION_LABELS = ["ক", "খ", "গ", "ঘ"];
-
 const markdownComponents = {
   h2: (props) => <h2 className="mt-6 border-b border-slate-200 pb-2 text-lg font-semibold leading-snug text-slate-950 first:mt-0" {...props} />,
   h3: (props) => <h3 className="mt-4 text-base font-semibold leading-snug text-slate-900" {...props} />,
@@ -287,6 +285,30 @@ function getSubQuestionMarks(subQuestion) {
   return subQuestion.marks ?? subQuestion.question_marks ?? subQuestion.total_marks ?? null;
 }
 
+function getSubQuestionLabel(subQuestion, index) {
+  if (!subQuestion || typeof subQuestion === "string") {
+    return `${index + 1}.`;
+  }
+
+  const displayLabel = getOptionalText(subQuestion.display_label);
+  if (displayLabel) {
+    return displayLabel;
+  }
+
+  const questionNo = getOptionalText(subQuestion.question_no);
+  const match = questionNo.match(/\(([^()]+)\)/);
+  if (match?.[1]) {
+    return `(${match[1].trim()})`;
+  }
+
+  const label = getOptionalText(subQuestion.label);
+  if (label) {
+    return `${label}.`;
+  }
+
+  return `${index + 1}.`;
+}
+
 function getOptionalText(value) {
   return String(value ?? "").trim();
 }
@@ -391,7 +413,7 @@ function buildQuestionTextForAnswer(item) {
           const options = Array.isArray(subQuestion?.options) && subQuestion.options.length > 0
             ? `\nOptions: ${subQuestion.options.map(String).join(", ")}`
             : "";
-          return `${SUB_QUESTION_LABELS[index] || index + 1}. ${text}${options}`;
+          return `${getSubQuestionLabel(subQuestion, index)} ${text}${options}`;
         })
         .join("\n"),
     );
@@ -461,7 +483,7 @@ function SuggestionPrompt({ item, paperType }) {
             const subOptions = Array.isArray(subQuestion?.options) ? subQuestion.options : [];
             return (
               <div key={`${subIndex}-${subQuestionText}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
-                <span className="font-semibold text-slate-950">{SUB_QUESTION_LABELS[subIndex] || subIndex + 1}.</span>{" "}
+                <span className="font-semibold text-slate-950">{getSubQuestionLabel(subQuestion, subIndex)}</span>{" "}
                 <MathRenderer value={subQuestionText || "No sub-question text provided."} className="prose max-w-none" />
                 {marks !== null && marks !== undefined && marks !== "" && (
                   <span className="text-xs font-semibold text-slate-500">{marks} marks</span>

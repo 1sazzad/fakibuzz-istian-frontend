@@ -210,6 +210,32 @@ function buildPaperTypeParams(params = {}) {
   };
 }
 
+function normalizeBoardPaperTypeParam(value) {
+  const paperType = String(value ?? "").trim().toUpperCase();
+  return paperType === "CQ" || paperType === "MCQ" || paperType === "WRITTEN" ? paperType : undefined;
+}
+
+function buildBoardPaperParams(params = {}) {
+  const academicLevel = String(params.academic_level ?? params.academicLevel ?? "").trim().toUpperCase();
+
+  if (!academicLevel) {
+    throw new Error("academic_level is required to load board papers.");
+  }
+
+  const paperType = normalizeBoardPaperTypeParam(params.paper_type ?? params.paperType);
+  const normalizedParams = new URLSearchParams();
+
+  normalizedParams.set("academic_level", academicLevel);
+
+  if (params.subject_code) normalizedParams.set("subject_code", String(params.subject_code).trim());
+  if (params.board_name) normalizedParams.set("board_name", String(params.board_name).trim());
+  if (params.exam_year) normalizedParams.set("exam_year", String(params.exam_year).trim());
+  if (paperType) normalizedParams.set("paper_type", paperType);
+  if (params.group) normalizedParams.set("group", String(params.group).trim());
+
+  return normalizedParams.toString();
+}
+
 export const apiEndpoints = {
   register: (payload) => API.post("/auth/register", payload),
   login: (payload) =>
@@ -231,6 +257,8 @@ export const apiEndpoints = {
   getSubjects: (params) => API.get("/subjects", { params }),
   getSubjectQuestions: (subjectCode, params) =>
     API.get(`/subjects/${encodePath(subjectCode)}/questions`, { params: buildPaperTypeParams(params) }),
+  listBoardPapers: (filters = {}) => API.get(`/papers/board?${buildBoardPaperParams(filters)}`).then((response) => response.data),
+  getBoardPaperById: (examId) => API.get(`/papers/board/${encodePath(examId)}`),
   searchQuestions: (payload) => API.post("/search", payload),
   getSubjectAnalysis: (subjectCode, params = {}) =>
     API.get(`/subjects/${encodePath(subjectCode)}/analysis`, { params: buildPaperTypeParams(params) }),
@@ -312,6 +340,18 @@ export function updateDepartment(departmentId, payload) {
 
 export function deleteDepartment(departmentId) {
   return API.delete(`/admin/departments/${encodePath(departmentId)}`);
+}
+
+export function listBoardPapers(filters = {}) {
+  return API.get(`/papers/board?${buildBoardPaperParams(filters)}`).then((response) => response.data);
+}
+
+export function getBoardPaperById(examId) {
+  if (!examId) {
+    throw new Error("examId is required");
+  }
+
+  return API.get(`/papers/board/${encodePath(examId)}`).then((response) => response.data);
 }
 
 export { buildQuery };

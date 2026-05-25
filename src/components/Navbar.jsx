@@ -18,6 +18,7 @@ const publicNavItems = [
 const studentNavItems = [
   { to: "/profile", label: "Profile" },
   { to: "/subjects", label: "Subjects" },
+  { to: "/board-papers", label: "Board Papers" },
   { to: "/suggestions", label: "Suggestions" },
   { to: "/answers", label: "Answer Builder" },
   { to: "/support", label: "Support" },
@@ -44,6 +45,7 @@ function getIconForItem(label) {
     Profile: "👤",
     Subjects: "📚",
     Suggestions: "💡",
+    "Board Papers": "🧾",
     "Answer Builder": "🔨",
     Support: "🤝",
     "Contact / Feedback": "💬",

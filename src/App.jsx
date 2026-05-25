@@ -12,6 +12,7 @@ import { PERMISSION_DENIED_MESSAGE } from "./utils/auth";
 
 import UploadPage from "./pages/UploadPage";
 import QuestionsPage from "./pages/QuestionsPage";
+import BoardPapersPage from "./pages/BoardPapersPage";
 import SimilarQuestionsPage from "./pages/SimilarQuestionsPage";
 import TopicsPage from "./pages/TopicsPage";
 import PredictionsPage from "./pages/PredictionsPage";
@@ -107,6 +108,7 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Navigate to="/subjects" replace />} />
             <Route path="/subjects" element={<QuestionsPage />} />
+            <Route path="/board-papers" element={<BoardPapersPage />} />
             <Route path="/search" element={<SimilarQuestionsPage />} />
             <Route path="/suggestions" element={<SuggestionsPage />} />
             <Route path="/generate-answer" element={<GenerateAnswerPage />} />

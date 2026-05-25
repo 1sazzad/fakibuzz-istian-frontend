@@ -45,7 +45,7 @@ function DiagramRenderer({
     return null;
   }
 
-  if (diagram.diagramType === "svg" && diagram.diagramSvg) {
+  if (diagram.diagramSvg) {
     const cleanSvg = DOMPurify.sanitize(diagram.diagramSvg, {
       USE_PROFILES: { svg: true, svgFilters: true },
     });
