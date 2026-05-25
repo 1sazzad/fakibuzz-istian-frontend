@@ -2,11 +2,28 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { getApiErrorMessage } from "../utils/auth";
-import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { buildSubjectScopeParams, getAcademicProfileSignature, isSecondaryAcademicProfile } from "../utils/academicProfile";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
+import { getDefaultPaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
 import { formatSuggestionScore, normalizePredictionResponse, normalizeSuggestionScore } from "../utils/suggestionLookups";
+
+const PAPER_TYPE_OPTIONS = ["CQ", "MCQ", "WRITTEN"];
+
+function isSecondarySubject(subject) {
+  const academicLevel = String(subject?.academic_level || "").trim().toUpperCase();
+  return academicLevel === "SSC" || academicLevel === "HSC";
+}
+
+function getPaperTypeOptions(subject, user) {
+  if (!isSecondaryAcademicProfile(user) && !isSecondarySubject(subject)) {
+    return [];
+  }
+
+  const supportedTypes = normalizeSupportedPaperTypes(subject?.supported_paper_types);
+  return supportedTypes.length > 0 ? supportedTypes : PAPER_TYPE_OPTIONS;
+}
 
 function normalizePredictions(payload) {
   return normalizePredictionResponse(payload);
@@ -24,12 +41,55 @@ function getPredictionMessage(payload, fallback) {
   return fallback;
 }
 
+function getQuestionText(question) {
+  if (!question) {
+    return "";
+  }
+
+  if (typeof question === "string") {
+    return question;
+  }
+
+  if (typeof question === "object") {
+    return question.question_text || question.text || question.question || question.title || "";
+  }
+
+  return String(question);
+}
+
+function getQuestionMeta(question) {
+  if (!question || typeof question !== "object") {
+    return "";
+  }
+
+  const parts = [];
+
+  if (question.question_no) {
+    parts.push(`Q${question.question_no}`);
+  }
+
+  if (question.exam_year) {
+    parts.push(String(question.exam_year));
+  }
+
+  if (question.marks) {
+    parts.push(`${question.marks} marks`);
+  }
+
+  if (question.paper_type) {
+    parts.push(question.paper_type);
+  }
+
+  return parts.join(" · ");
+}
+
 function PredictionsPage() {
   const [predictions, setPredictions] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const { user } = useAuth();
   const location = useLocation();
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedPaperType, setSelectedPaperType] = useState("CQ");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -37,8 +97,21 @@ function PredictionsPage() {
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
   const academicProfileSignature = getAcademicProfileSignature(user);
 
-  async function loadPredictionData(subjectCode) {
-    return apiEndpoints.getSubjectPrediction(subjectCode);
+  async function loadPredictionData(subjectCode, paperType, subjectOverride = null) {
+    const subject = subjectOverride || subjects.find((item) => item.subject_code === subjectCode) || null;
+    const paperTypeOptions = getPaperTypeOptions(subject, user);
+
+    if (paperTypeOptions.length > 0) {
+      const selectedType = paperTypeOptions.includes(paperType) ? paperType : getDefaultPaperType(paperTypeOptions);
+
+      if (!selectedType) {
+        throw new Error("Please select CQ, MCQ, or WRITTEN before loading.");
+      }
+
+      return apiEndpoints.getPredictions(subjectCode, { paperType: selectedType });
+    }
+
+    return apiEndpoints.getPredictions(subjectCode);
   }
 
   useEffect(() => {
@@ -64,9 +137,12 @@ function PredictionsPage() {
         }
 
         setSelectedSubject(subjectCode);
+        const nextSubject = subjectList.find((subject) => subject.subject_code === subjectCode) || null;
+        const nextPaperType = getDefaultPaperType(getPaperTypeOptions(nextSubject, user));
+        setSelectedPaperType(nextPaperType || "CQ");
 
         try {
-          const predictionResponse = await loadPredictionData(subjectCode);
+          const predictionResponse = await loadPredictionData(subjectCode, nextPaperType, nextSubject);
           if (active) {
             const nextPredictions = normalizePredictions(predictionResponse.data);
             setPredictions(nextPredictions);
@@ -108,11 +184,15 @@ function PredictionsPage() {
       return;
     }
 
+    const nextSubject = subjects.find((subject) => subject.subject_code === subjectCode) || null;
+    const nextPaperType = getDefaultPaperType(getPaperTypeOptions(nextSubject, user));
+    setSelectedPaperType(nextPaperType || "CQ");
+
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await loadPredictionData(subjectCode);
+      const response = await loadPredictionData(subjectCode, nextPaperType, nextSubject);
       const nextPredictions = normalizePredictions(response.data);
       setPredictions(nextPredictions);
       setMessage(nextPredictions.length === 0 ? getPredictionMessage(response.data, "No predictions returned for this subject.") : "");
@@ -130,9 +210,25 @@ function PredictionsPage() {
     setMessage("");
   }
 
+  function handlePaperTypeChange(nextPaperType) {
+    setSelectedPaperType(nextPaperType);
+    setMessage("");
+  }
+
   async function handleLoadPredictions() {
     if (!selectedSubject.trim()) {
       setMessage("Enter a subject code first.");
+      return;
+    }
+
+    const currentSubject = subjects.find((subject) => subject.subject_code === selectedSubject) || null;
+    const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+    const resolvedPaperType = paperTypeOptions.length > 0
+      ? (paperTypeOptions.includes(selectedPaperType) ? selectedPaperType : getDefaultPaperType(paperTypeOptions))
+      : "";
+
+    if (paperTypeOptions.length > 0 && !resolvedPaperType) {
+      setMessage("Please select CQ, MCQ, or WRITTEN before loading.");
       return;
     }
 
@@ -140,7 +236,7 @@ function PredictionsPage() {
     setMessage("");
 
     try {
-      const response = await loadPredictionData(selectedSubject.trim());
+      const response = await loadPredictionData(selectedSubject.trim(), resolvedPaperType, currentSubject);
       const nextPredictions = normalizePredictions(response.data);
       setPredictions(nextPredictions);
       setMessage(nextPredictions.length === 0 ? getPredictionMessage(response.data, "No predictions returned for this subject.") : "");
@@ -160,6 +256,10 @@ function PredictionsPage() {
     if (score >= 40) return "Medium";
     return "Low Priority";
   }
+
+  const currentSubject = subjects.find((subject) => subject.subject_code === selectedSubject) || null;
+  const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+  const showPaperSelector = paperTypeOptions.length > 0;
 
   if (loading) {
     return <LoadingSpinner label="Loading predictions..." />;
@@ -203,6 +303,16 @@ function PredictionsPage() {
                   placeholder="Enter subject code, e.g. CSE-421"
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                 />
+              )}
+              {showPaperSelector && (
+                <div className="mt-3">
+                  <PaperTypeSelector
+                    availableTypes={paperTypeOptions}
+                    value={selectedPaperType}
+                    onChange={handlePaperTypeChange}
+                    disabled={loading}
+                  />
+                </div>
               )}
               <Button type="button" onClick={handleLoadPredictions} className="mt-3 w-full">
                 Load predictions
@@ -270,7 +380,12 @@ function PredictionsPage() {
                       <p className="text-sm font-semibold text-slate-950">Related Previous Questions</p>
                       {item.related_questions.slice(0, 4).map((question, questionIndex) => (
                         <div key={question.id || questionIndex} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                          <p className="whitespace-pre-line break-words leading-6">{question.question_text || question.text || question.question || question}</p>
+                          <p className="whitespace-pre-line break-words leading-6">{getQuestionText(question)}</p>
+                          {getQuestionMeta(question) && (
+                            <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+                              {getQuestionMeta(question)}
+                            </p>
+                          )}
                           <DiagramRenderer question={question} />
                           <QuestionExtras item={question} />
                           <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
@@ -309,3 +424,5 @@ function PredictionsPage() {
 }
 
 export default PredictionsPage;
+
+//prediscions page

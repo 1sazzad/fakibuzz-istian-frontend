@@ -185,3 +185,5 @@ function SimilarQuestionsPage() {
 }
 
 export default SimilarQuestionsPage;
+
+// similar questions page

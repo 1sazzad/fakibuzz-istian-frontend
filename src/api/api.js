@@ -232,8 +232,12 @@ export const apiEndpoints = {
   getSubjectQuestions: (subjectCode, params) =>
     API.get(`/subjects/${encodePath(subjectCode)}/questions`, { params: buildPaperTypeParams(params) }),
   searchQuestions: (payload) => API.post("/search", payload),
-  getSubjectAnalysis: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/analysis`),
-  getSubjectPrediction: (subjectCode) => API.get(`/subjects/${encodePath(subjectCode)}/predictions`),
+  getSubjectAnalysis: (subjectCode, params = {}) =>
+    API.get(`/subjects/${encodePath(subjectCode)}/analysis`, { params: buildPaperTypeParams(params) }),
+  getPredictions: (subjectCode, params = {}) =>
+    API.get(`/subjects/${encodePath(subjectCode)}/predictions`, { params: buildPaperTypeParams(params) }),
+  getSubjectPrediction: (subjectCode, params = {}) =>
+    API.get(`/subjects/${encodePath(subjectCode)}/predictions`, { params: buildPaperTypeParams(params) }),
   getSubjectSuggestions: (subjectCode, params) =>
     API.get(`/subjects/${encodePath(subjectCode)}/suggestions`, { params: buildPaperTypeParams(params) }),
   getSuggestions: ({ subject_code, query, top_k, paper_type }) =>

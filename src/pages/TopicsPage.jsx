@@ -2,9 +2,26 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
-import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
+import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
+import { buildSubjectScopeParams, getAcademicProfileSignature, isSecondaryAcademicProfile } from "../utils/academicProfile";
 import { formatSubjectLabel, normalizeSubjectList } from "../utils/subjectLookups";
+import { getDefaultPaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
+
+const PAPER_TYPE_OPTIONS = ["CQ", "MCQ", "WRITTEN"];
+
+function isSecondarySubject(subject) {
+  const academicLevel = String(subject?.academic_level || "").trim().toUpperCase();
+  return academicLevel === "SSC" || academicLevel === "HSC";
+}
+
+function getPaperTypeOptions(subject, user) {
+  if (!isSecondaryAcademicProfile(user) && !isSecondarySubject(subject)) {
+    return [];
+  }
+
+  const supportedTypes = normalizeSupportedPaperTypes(subject?.supported_paper_types);
+  return supportedTypes.length > 0 ? supportedTypes : PAPER_TYPE_OPTIONS;
+}
 
 function extractTopics(analysis) {
   return analysis?.topics || analysis?.analysis || analysis?.repeated_topics || [];
@@ -20,6 +37,22 @@ function getAnalysisMessage(payload, fallback) {
   }
 
   return fallback;
+}
+
+function getQuestionText(question) {
+  if (!question) {
+    return "";
+  }
+
+  if (typeof question === "string") {
+    return question;
+  }
+
+  if (typeof question === "object") {
+    return question.question_text || question.text || question.question || question.title || "";
+  }
+
+  return String(question);
 }
 
 function formatAppearedYears(value) {
@@ -47,6 +80,7 @@ function TopicsPage() {
   const location = useLocation();
   const [selectedSubject, setSelectedSubject] = useState("");
   const [analysis, setAnalysis] = useState(null);
+  const [selectedPaperType, setSelectedPaperType] = useState("CQ");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -54,7 +88,20 @@ function TopicsPage() {
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
   const academicProfileSignature = getAcademicProfileSignature(user);
 
-  async function loadAnalysisData(subjectCode) {
+  async function loadAnalysisData(subjectCode, paperType, subjectOverride = null) {
+    const subject = subjectOverride || subjects.find((item) => item.subject_code === subjectCode) || null;
+    const paperTypeOptions = getPaperTypeOptions(subject, user);
+
+    if (paperTypeOptions.length > 0) {
+      const selectedType = paperTypeOptions.includes(paperType) ? paperType : getDefaultPaperType(paperTypeOptions);
+
+      if (!selectedType) {
+        throw new Error("Please select CQ, MCQ, or WRITTEN before loading.");
+      }
+
+      return apiEndpoints.getSubjectAnalysis(subjectCode, { paperType: selectedType });
+    }
+
     return apiEndpoints.getSubjectAnalysis(subjectCode);
   }
 
@@ -83,7 +130,10 @@ function TopicsPage() {
         setSelectedSubject(subjectCode);
 
         try {
-          const analysisResponse = await loadAnalysisData(subjectCode);
+          const nextSubject = subjectList.find((subject) => subject.subject_code === subjectCode) || null;
+          const nextPaperType = getDefaultPaperType(getPaperTypeOptions(nextSubject, user));
+          setSelectedPaperType(nextPaperType || "CQ");
+          const analysisResponse = await loadAnalysisData(subjectCode, nextPaperType, nextSubject);
           if (active) {
             setAnalysis(analysisResponse.data);
             setMessage(extractTopics(analysisResponse.data).length === 0 ? getAnalysisMessage(analysisResponse.data, "") : "");
@@ -124,11 +174,15 @@ function TopicsPage() {
       return;
     }
 
+    const nextSubject = subjects.find((subject) => subject.subject_code === subjectCode) || null;
+    const nextPaperType = getDefaultPaperType(getPaperTypeOptions(nextSubject, user));
+    setSelectedPaperType(nextPaperType || "CQ");
+
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await loadAnalysisData(subjectCode);
+      const response = await loadAnalysisData(subjectCode, nextPaperType, nextSubject);
       setAnalysis(response.data);
       setMessage(extractTopics(response.data).length === 0 ? getAnalysisMessage(response.data, "") : "");
     } catch (error) {
@@ -151,11 +205,22 @@ function TopicsPage() {
       return;
     }
 
+    const currentSubject = subjects.find((subject) => subject.subject_code === selectedSubject) || null;
+    const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+    const resolvedPaperType = paperTypeOptions.length > 0
+      ? (paperTypeOptions.includes(selectedPaperType) ? selectedPaperType : getDefaultPaperType(paperTypeOptions))
+      : "";
+
+    if (paperTypeOptions.length > 0 && !resolvedPaperType) {
+      setMessage("Please select CQ, MCQ, or WRITTEN before loading.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await loadAnalysisData(selectedSubject.trim());
+      const response = await loadAnalysisData(selectedSubject.trim(), resolvedPaperType, currentSubject);
       setAnalysis(response.data);
       setMessage(extractTopics(response.data).length === 0 ? getAnalysisMessage(response.data, "") : "");
     } catch (error) {
@@ -167,7 +232,15 @@ function TopicsPage() {
     }
   }
 
+  function handlePaperTypeChange(nextPaperType) {
+    setSelectedPaperType(nextPaperType);
+    setMessage("");
+  }
+
   const topicEntries = extractTopics(analysis);
+  const currentSubject = subjects.find((subject) => subject.subject_code === selectedSubject) || null;
+  const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+  const showPaperSelector = paperTypeOptions.length > 0;
 
   if (loading) {
     return <LoadingSpinner label="Loading analysis..." />;
@@ -212,6 +285,16 @@ function TopicsPage() {
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
                 />
               )}
+              {showPaperSelector && (
+                <div className="mt-3">
+                  <PaperTypeSelector
+                    availableTypes={paperTypeOptions}
+                    value={selectedPaperType}
+                    onChange={handlePaperTypeChange}
+                    disabled={loading}
+                  />
+                </div>
+              )}
               <Button type="button" onClick={handleLoadAnalysis} className="mt-3 w-full">
                 Load analysis
               </Button>
@@ -250,7 +333,7 @@ function TopicsPage() {
                           <p className="text-sm font-semibold text-slate-900">Important questions</p>
                           {topic.important_questions.slice(0, 3).map((question, questionIndex) => (
                             <div key={question.id || questionIndex} className="rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-                              <p className="whitespace-pre-line break-words">{question.question_text || question.text || question.question || question}</p>
+                              <p className="whitespace-pre-line break-words">{getQuestionText(question)}</p>
                               <DiagramRenderer question={question} />
                               <QuestionExtras item={question} />
                             </div>
@@ -308,7 +391,7 @@ function TopicsPage() {
                   <div className="mt-3 space-y-2">
                     {analysis.sample_questions.map((question, index) => (
                       <div key={index} className="break-words rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                        {question.question_text || question.text || question}
+                        {getQuestionText(question)}
                         <DiagramRenderer question={question} />
                         <QuestionExtras item={question} />
                       </div>
@@ -326,3 +409,5 @@ function TopicsPage() {
 }
 
 export default TopicsPage;
+
+// topics page

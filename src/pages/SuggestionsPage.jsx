@@ -9,8 +9,8 @@ import { apiEndpoints, getApiStatus } from "../api/api";
 import MathRenderer from "../components/MathRenderer";
 import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
-import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
-import { getDefaultPaperType, hasPaperTypeSupport, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
+import { buildSubjectScopeParams, getAcademicProfileSignature, isSecondaryAcademicProfile } from "../utils/academicProfile";
+import { getDefaultPaperType, normalizePaperType, normalizeSupportedPaperTypes } from "../utils/paperTypes";
 import { formatSubjectLabel, formatSubjectMeta, normalizeSubjectList } from "../utils/subjectLookups";
 import {
   MAX_SUGGESTION_QUERY_LENGTH,
@@ -218,12 +218,12 @@ function normalizeSuggestions(payload) {
 }
 
 function getSuggestionText(item) {
-  return item.question_text || item.question || item.text || item.title || item.prompt || item.suggestion || "Suggested question";
+  return getQuestionText(item.question) || item.question_text || item.text || item.title || item.prompt || item.suggestion || "Suggested question";
 }
 
 function getRawSuggestionText(item) {
   const fallbackText = "Suggested question";
-  const alternateText = item?.question || item?.text || item?.title || item?.prompt || item?.suggestion || "";
+  const alternateText = getQuestionText(item?.question) || item?.text || item?.title || item?.prompt || item?.suggestion || "";
   if (alternateText) {
     return alternateText;
   }
@@ -233,6 +233,42 @@ function getRawSuggestionText(item) {
 
 function getSuggestionPaperType(item, fallback = "") {
   return normalizePaperType(item?.paper_type) || fallback;
+}
+
+function getQuestionText(question) {
+  if (!question) return "";
+
+  if (typeof question === "string") {
+    return question;
+  }
+
+  if (typeof question === "object") {
+    return (
+      question.question_text ||
+      question.text ||
+      question.question ||
+      question.title ||
+      ""
+    );
+  }
+
+  return String(question);
+}
+
+const PAPER_TYPE_OPTIONS = ["CQ", "MCQ", "WRITTEN"];
+
+function isSecondarySubject(subject) {
+  const academicLevel = String(subject?.academic_level || "").trim().toUpperCase();
+  return academicLevel === "SSC" || academicLevel === "HSC";
+}
+
+function getPaperTypeOptions(subject, user) {
+  if (!isSecondaryAcademicProfile(user) && !isSecondarySubject(subject)) {
+    return [];
+  }
+
+  const supportedTypes = normalizeSupportedPaperTypes(subject?.supported_paper_types);
+  return supportedTypes.length > 0 ? supportedTypes : PAPER_TYPE_OPTIONS;
 }
 
 function getSubQuestionText(subQuestion) {
@@ -491,7 +527,7 @@ function SuggestionsPage() {
   const location = useLocation();
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
   const [subjectCode, setSubjectCode] = useState("");
-  const [selectedPaperType, setSelectedPaperType] = useState("");
+  const [selectedPaperType, setSelectedPaperType] = useState("CQ");
   const [query, setQuery] = useState("important questions for final exam");
   const [topK, setTopK] = useState(10);
   const [suggestions, setSuggestions] = useState([]);
@@ -522,7 +558,7 @@ function SuggestionsPage() {
         if (nextSubjectCode) {
           const nextSubject = subjectList.find((subject) => subject.subject_code === nextSubjectCode) || subjectList[0];
           setSubjectCode(nextSubjectCode);
-          setSelectedPaperType(getDefaultPaperType(nextSubject?.supported_paper_types));
+          setSelectedPaperType(getDefaultPaperType(getPaperTypeOptions(nextSubject, user)) || "CQ");
         }
         setMissingScope(false);
       } catch (error) {
@@ -541,6 +577,11 @@ function SuggestionsPage() {
     const cleanSubjectCode = subjectCode.trim();
     const cleanQuery = normalizeSuggestionQuery(query);
     const cleanTopK = normalizeSuggestionTopK(topK, MAX_SUGGESTION_TOP_K, 10);
+    const currentSubject = subjects.find((subject) => subject.subject_code === cleanSubjectCode) || null;
+    const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+    const resolvedPaperType = paperTypeOptions.length > 0
+      ? (paperTypeOptions.includes(paperType) ? paperType : getDefaultPaperType(paperTypeOptions))
+      : "";
 
     if (!cleanSubjectCode) {
       setMessage("Enter a subject code first.");
@@ -566,7 +607,7 @@ function SuggestionsPage() {
         subject_code: cleanSubjectCode,
         query: cleanQuery,
         top_k: cleanTopK,
-        paper_type: paperType,
+        ...(paperTypeOptions.length > 0 && resolvedPaperType ? { paper_type: resolvedPaperType } : {}),
       });
       const nextSuggestions = normalizeSuggestions(response.data);
       const statusMessage = getSuggestionStatus(response.data);
@@ -671,14 +712,14 @@ function SuggestionsPage() {
     return true;
   });
   const currentSubject = subjects.find((subject) => subject.subject_code === subjectCode) || null;
-  const supportedPaperTypes = normalizeSupportedPaperTypes(currentSubject?.supported_paper_types);
-  const showPaperSelector = hasPaperTypeSupport(currentSubject);
+  const paperTypeOptions = getPaperTypeOptions(currentSubject, user);
+  const showPaperSelector = paperTypeOptions.length > 0;
 
   function handleSubjectChange(event) {
     const nextSubjectCode = event.target.value;
     const nextSubject = subjects.find((subject) => subject.subject_code === nextSubjectCode);
     setSubjectCode(nextSubjectCode);
-    setSelectedPaperType(getDefaultPaperType(nextSubject?.supported_paper_types));
+    setSelectedPaperType(getDefaultPaperType(getPaperTypeOptions(nextSubject, user)) || "CQ");
     setSuggestions([]);
     setAnswerStates({});
     setExpandedAnswers({});
@@ -687,7 +728,7 @@ function SuggestionsPage() {
 
   async function handlePaperTypeChange(nextPaperType) {
     setSelectedPaperType(nextPaperType);
-    await loadSuggestionsForPaperType(nextPaperType);
+    setMessage("");
   }
 
   if (subjectsLoading) {
@@ -762,9 +803,10 @@ function SuggestionsPage() {
           <div className="flex flex-col gap-2 sm:flex-row lg:col-span-4">
             {showPaperSelector && (
               <PaperTypeSelector
-                supportedPaperTypes={supportedPaperTypes}
+                availableTypes={paperTypeOptions}
                 value={selectedPaperType}
                 onChange={handlePaperTypeChange}
+                disabled={loading}
                 className="w-full sm:w-auto"
               />
             )}
@@ -953,3 +995,5 @@ function SuggestionsPage() {
 }
 
 export default SuggestionsPage;
+
+// suggestions page
