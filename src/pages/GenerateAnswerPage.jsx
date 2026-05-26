@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { apiEndpoints, getAnswerBuilderErrorKind } from "../api/api";
+import { apiEndpoints, getAnswerBuilderErrorKind, getAnswerGenerationErrorMessage, logAnswerGenerationError } from "../api/api";
 import AnswerWarningBanner from "../components/common/AnswerWarningBanner";
 import { Badge, Button, Card, DiagramRenderer, ErrorMessage, PageHeader, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, isMissingStudentScopeError } from "../utils/auth";
@@ -379,10 +379,19 @@ function GenerateAnswerPage() {
       setMissingScope(false);
       setMessage("Answer generated successfully.");
     } catch (error) {
-      console.error(error);
+      logAnswerGenerationError("/generate-answer", {
+        question: question.trim(),
+        subject_code: subjectCode.trim(),
+        answer_type: answerType,
+        marks: requestedMarks,
+        formula_latex: formulaLatex.trim() || null,
+        diagram_required: diagramRequired,
+        diagram_reference: diagramReference.trim() || null,
+        diagram_description: diagramDescription.trim() || null,
+      }, error);
       const friendlyMessage = isMissingStudentScopeError(error)
         ? MISSING_STUDENT_SCOPE_MESSAGE
-        : getAnswerBuilderErrorMessage(error);
+        : getAnswerGenerationErrorMessage(error, getAnswerBuilderErrorMessage(error));
       setAnswer("");
       setAnswerResult(null);
       setQuota(getQuotaFromError(error));

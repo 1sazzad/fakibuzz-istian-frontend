@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { Link, useNavigate } from "react-router-dom";
-import { apiEndpoints } from "../api/api";
+import { apiEndpoints, getAnswerGenerationErrorMessage, logAnswerGenerationError } from "../api/api";
 import { Badge, Button, Card, DiagramRenderer, EmptyState, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { buildSubjectScopeParams, getAcademicProfileSignature } from "../utils/academicProfile";
 import { getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
@@ -31,6 +31,268 @@ function getQuestionPaperType(question, fallback = "") {
 
 function getQuestionText(question) {
   return question?.question_text || question?.text || question?.question || "";
+}
+
+function getQuestionKey(question, index) {
+  return question?.id ?? index;
+}
+
+function getPageLevelAcademicLevel(user, currentSubject, overview) {
+  return user?.academic_level || currentSubject?.academic_level || overview?.academic_level || null;
+}
+
+function getPageLevelBoard(currentSubject, overview) {
+  return currentSubject?.board_name || currentSubject?.board || overview?.board_name || overview?.board || null;
+}
+
+function getPageLevelYear(currentSubject, overview) {
+  return currentSubject?.exam_year || currentSubject?.year || overview?.exam_year || overview?.year || null;
+}
+
+function getOptionalText(value) {
+  return String(value ?? "").trim();
+}
+
+function getAnswerTypeForQuestion(question) {
+  const existingAnswerType = getOptionalText(question?.answer_type || question?.answerType);
+  if (existingAnswerType) {
+    return existingAnswerType;
+  }
+
+  const marks = Number(question?.marks ?? question?.question_marks ?? question?.total_marks ?? 5);
+  if (Number.isFinite(marks)) {
+    if (marks <= 2) return "2_mark";
+    if (marks <= 5) return "5_mark";
+    if (marks <= 10) return "10_mark";
+    return "15_mark";
+  }
+
+  return "5_mark";
+}
+
+function getQuestionMainText(question) {
+  return getOptionalText(
+    question?.description ||
+      question?.passage ||
+      question?.stem ||
+      question?.question_text ||
+      question?.text ||
+      question?.question ||
+      "",
+  );
+}
+
+function getWordBoxWords(wordBox) {
+  if (Array.isArray(wordBox)) {
+    return wordBox.map((word) => getOptionalText(word)).filter(Boolean);
+  }
+
+  if (wordBox && typeof wordBox === "object" && Array.isArray(wordBox.words)) {
+    return wordBox.words.map((word) => getOptionalText(word)).filter(Boolean);
+  }
+
+  return [];
+}
+
+function getTableDataText(tableData) {
+  if (!tableData) {
+    return "";
+  }
+
+  if (typeof tableData === "string") {
+    return tableData.trim();
+  }
+
+  if (Array.isArray(tableData)) {
+    return tableData
+      .map((row) => (Array.isArray(row) ? row.map((cell) => getOptionalText(cell)).join(" | ") : getOptionalText(row)))
+      .join("\n")
+      .trim();
+  }
+
+  if (typeof tableData === "object") {
+    const headers = Array.isArray(tableData.headers)
+      ? tableData.headers.map((header) => getOptionalText(header)).filter(Boolean).join(" | ")
+      : Array.isArray(tableData.columns)
+        ? tableData.columns.map((column) => getOptionalText(column)).filter(Boolean).join(" | ")
+        : "";
+    const rows = Array.isArray(tableData.rows)
+      ? tableData.rows
+          .map((row) => (Array.isArray(row) ? row.map((cell) => getOptionalText(cell)).join(" | ") : getOptionalText(row)))
+          .join("\n")
+      : Array.isArray(tableData.data)
+        ? tableData.data
+            .map((row) => (Array.isArray(row) ? row.map((cell) => getOptionalText(cell)).join(" | ") : getOptionalText(row)))
+            .join("\n")
+        : "";
+
+    return [headers, rows].filter(Boolean).join("\n").trim();
+  }
+
+  return getOptionalText(tableData);
+}
+
+function getSubQuestionPromptText(subQuestion, index) {
+  if (typeof subQuestion === "string") {
+    return getOptionalText(subQuestion);
+  }
+
+  const label = getOptionalText(subQuestion?.display_label || subQuestion?.label || subQuestion?.question_no || `${index + 1}`);
+  const text = getOptionalText(subQuestion?.question_text || subQuestion?.text || subQuestion?.question);
+  const marks = getOptionalText(subQuestion?.marks ?? subQuestion?.question_marks ?? subQuestion?.total_marks ?? "");
+
+  return [label ? `${label}.` : "", text, marks ? `(${marks} marks)` : ""].filter(Boolean).join(" ").trim();
+}
+
+function buildQuestionTextForAnswer(question, pageContext = {}) {
+  const subjectCode = getOptionalText(question?.subject_code || question?.subjectCode || pageContext.selectedSubject);
+  const subjectName = getOptionalText(question?.subject_name || question?.subjectName || pageContext.currentSubject?.subject_name || pageContext.currentSubject?.name);
+  const paperType = getOptionalText(question?.paper_type || question?.paperType || pageContext.selectedPaperType);
+  const questionType = getOptionalText(question?.question_type || question?.questionType);
+  const marks = getOptionalText(question?.marks ?? question?.question_marks ?? question?.total_marks ?? "");
+  const topic = getOptionalText(question?.topic || question?.final_topic || question?.suggested_topic);
+  const examYear = getOptionalText(question?.exam_year || question?.year || pageContext.selectedYear);
+  const board = getOptionalText(question?.board_name || question?.board || pageContext.selectedBoard);
+  const section = getOptionalText(question?.section);
+  const questionNo = getOptionalText(question?.question_no || question?.questionNo);
+  const instruction = getOptionalText(question?.instruction);
+  const description = getOptionalText(question?.description || question?.passage || question?.stem);
+  const mainQuestion = getQuestionMainText(question);
+  const options = Array.isArray(question?.options) ? question.options.map((option) => getOptionalText(option)).filter(Boolean) : [];
+  const subQuestions = Array.isArray(question?.sub_questions) ? question.sub_questions : [];
+  const wordBoxWords = getWordBoxWords(question?.word_box);
+  const tableDataText = getTableDataText(question?.table_data);
+  const formulaLatex = getOptionalText(question?.formula_latex);
+  const formulaDisplay = getOptionalText(question?.formula_display);
+  const diagramRequired = question?.diagram_required === true || question?.diagram_required === "true";
+  const diagramType = getOptionalText(question?.diagram_type);
+  const diagramDescription = getOptionalText(question?.diagram_description);
+  const metadata = [];
+
+  if (subjectCode) metadata.push(`Subject Code: ${subjectCode}`);
+  if (subjectName) metadata.push(`Subject Name: ${subjectName}`);
+  if (paperType) metadata.push(`Paper Type: ${paperType}`);
+  if (questionType) metadata.push(`Question Type: ${questionType}`);
+  if (marks) metadata.push(`Marks: ${marks}`);
+  if (topic) metadata.push(`Topic: ${topic}`);
+  if (examYear) metadata.push(`Exam Year: ${examYear}`);
+  if (board) metadata.push(`Board/Institution: ${board}`);
+  if (section) metadata.push(`Section: ${section}`);
+  if (questionNo) metadata.push(`Question No: ${questionNo}`);
+
+  const parts = [...metadata];
+
+  if (description) {
+    parts.push(`\nDescription:\n${description}`);
+  }
+
+  if (mainQuestion && mainQuestion !== description) {
+    parts.push(`\nQuestion:\n${mainQuestion}`);
+  }
+
+  if (options.length > 0) {
+    const optionBlock = options.map((option, index) => `${String.fromCharCode(65 + index)}. ${option}`).join("\n");
+    parts.push(`\nOptions:\n${optionBlock}`);
+  }
+
+  if (subQuestions.length > 0) {
+    const subQuestionBlock = subQuestions.map((subQuestion, index) => getSubQuestionPromptText(subQuestion, index)).filter(Boolean).join("\n");
+    parts.push(`\nSub Questions:\n${subQuestionBlock}`);
+  }
+
+  if (wordBoxWords.length > 0) {
+    parts.push(`\nWord Box:\n${wordBoxWords.join(", ")}`);
+  }
+
+  if (tableDataText) {
+    parts.push(`\nTable Data:\n${tableDataText}`);
+  }
+
+  if (formulaLatex) {
+    parts.push(`\nFormula LaTeX:\n${formulaLatex}`);
+  }
+
+  if (formulaDisplay) {
+    parts.push(`\nFormula Display:\n${formulaDisplay}`);
+  }
+
+  if (diagramRequired) {
+    parts.push(`\nDiagram Required: Yes`);
+  }
+
+  if (diagramType) {
+    parts.push(`Diagram Type: ${diagramType}`);
+  }
+
+  if (diagramDescription) {
+    parts.push(`Diagram Description: ${diagramDescription}`);
+  }
+
+  const prompt = parts.filter(Boolean).join("\n").trim();
+
+  return `${prompt}\n\nNow answer this question according to the marks and question type.`.trim();
+}
+
+function getQuestionAnswerPayload(question, pageContext) {
+  const questionText = buildQuestionTextForAnswer(question, pageContext);
+  const originalQuestionSummary = {
+    has_options: Array.isArray(question?.options) && question.options.length > 0,
+    has_description: Boolean(getOptionalText(question?.description || question?.passage || question?.stem)),
+    has_sub_questions: Array.isArray(question?.sub_questions) && question.sub_questions.length > 0,
+    has_metadata: Boolean(
+      getOptionalText(question?.topic || question?.exam_year || question?.board || question?.section || question?.question_no || question?.instruction || question?.diagram_description || question?.formula_latex || question?.formula_display),
+    ),
+  };
+
+  return {
+    question_id: question?.id ?? null,
+    subject_id: question?.subject_id ?? question?.subjectId ?? pageContext.currentSubjectId ?? null,
+    subject_code: question?.subject_code ?? question?.subjectCode ?? pageContext.selectedSubject ?? null,
+    question: questionText,
+    question_text: questionText,
+    paper_type: question?.paper_type ?? question?.paperType ?? pageContext.selectedPaperType ?? null,
+    question_type: question?.question_type ?? question?.questionType ?? null,
+    answer_type: getAnswerTypeForQuestion(question),
+    marks: question?.marks ?? question?.question_marks ?? question?.total_marks ?? null,
+    topic: question?.topic ?? null,
+    academic_level: pageContext.selectedLevel ?? null,
+    board: pageContext.selectedBoard ?? null,
+    exam_year: pageContext.selectedYear ?? null,
+    section: question?.section ?? null,
+    question_no: question?.question_no ?? question?.questionNo ?? null,
+    instruction: question?.instruction ?? null,
+    description: question?.description ?? null,
+    options: question?.options ?? null,
+    sub_questions: question?.sub_questions ?? question?.subQuestions ?? null,
+    table_data: question?.table_data ?? question?.tableData ?? null,
+    word_box: question?.word_box ?? question?.wordBox ?? null,
+    diagram_required: question?.diagram_required ?? question?.diagramRequired ?? null,
+    diagram_type: question?.diagram_type ?? question?.diagramType ?? null,
+    diagram_svg: question?.diagram_svg ?? question?.diagramSvg ?? null,
+    diagram_description: question?.diagram_description ?? question?.diagramDescription ?? null,
+    formula_latex: question?.formula_latex ?? question?.formulaLatex ?? null,
+    formula_display: question?.formula_display ?? question?.formulaDisplay ?? null,
+    math_blocks: question?.math_blocks ?? question?.mathBlocks ?? null,
+    metadata: {
+      source: "subject-page",
+      description: getOptionalText(question?.description || question?.passage || question?.stem),
+      options: Array.isArray(question?.options) ? question.options : [],
+      sub_questions: Array.isArray(question?.sub_questions) ? question.sub_questions : [],
+      table_data: question?.table_data ?? question?.tableData ?? null,
+      word_box: question?.word_box ?? question?.wordBox ?? null,
+      topic: question?.topic ?? null,
+      exam_year: question?.exam_year ?? question?.year ?? pageContext.selectedYear ?? null,
+      section: question?.section ?? null,
+      question_no: question?.question_no ?? question?.questionNo ?? null,
+      instruction: question?.instruction ?? null,
+      diagram_required: question?.diagram_required ?? question?.diagramRequired ?? null,
+      diagram_type: question?.diagram_type ?? question?.diagramType ?? null,
+      diagram_description: question?.diagram_description ?? question?.diagramDescription ?? null,
+      formula_latex: question?.formula_latex ?? question?.formulaLatex ?? null,
+      formula_display: question?.formula_display ?? question?.formulaDisplay ?? null,
+      original_question_object_summary: originalQuestionSummary,
+    },
+  };
 }
 
 function getSubQuestionText(subQuestion) {
@@ -71,10 +333,6 @@ function getSubQuestionLabel(subQuestion, index) {
   }
 
   return `${index + 1}.`;
-}
-
-function getOptionalText(value) {
-  return String(value ?? "").trim();
 }
 
 function renderStructuredData(value) {
@@ -262,6 +520,9 @@ function QuestionsPage() {
   const [questionLimit] = useState(QUESTIONS_PER_PAGE);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [totalQuestionPages, setTotalQuestionPages] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [loadingMap, setLoadingMap] = useState({});
+  const [errorMap, setErrorMap] = useState({});
   const [booting, setBooting] = useState(true);
   const [loadingSubject, setLoadingSubject] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -275,6 +536,9 @@ function QuestionsPage() {
       setQuestionPage(1);
       setTotalQuestions(0);
       setTotalQuestionPages(0);
+      setAnswers({});
+      setLoadingMap({});
+      setErrorMap({});
       return;
     }
 
@@ -297,6 +561,9 @@ function QuestionsPage() {
       setQuestionPage(Number(questionPayload.current_page || questionPayload.page || safePage));
       setTotalQuestions(Number(questionPayload.total || 0));
       setTotalQuestionPages(Number(questionPayload.total_pages || 0));
+      setAnswers({});
+      setLoadingMap({});
+      setErrorMap({});
       setMissingScope(false);
       setMessage(`Loaded published data for ${subjectCode}${paperType ? ` (${paperType})` : ""}.`);
     } catch (error) {
@@ -305,6 +572,9 @@ function QuestionsPage() {
       setQuestions([]);
       setTotalQuestions(0);
       setTotalQuestionPages(0);
+      setAnswers({});
+      setLoadingMap({});
+      setErrorMap({});
       setMissingScope(isMissingStudentScopeError(error));
       setMessage(getApiErrorMessage(error, "Unable to load subject data right now."));
     } finally {
@@ -438,8 +708,70 @@ function QuestionsPage() {
   const currentSubject = searchResult?.subject_code === selectedSubject
     ? searchResult
     : subjects.find((subject) => subject.subject_code === selectedSubject) || overview || null;
+  const selectedLevel = getPageLevelAcademicLevel(user, currentSubject, overview);
+  const selectedBoard = getPageLevelBoard(currentSubject, overview);
+  const selectedYear = getPageLevelYear(currentSubject, overview);
   const supportedPaperTypes = normalizeSupportedPaperTypes(currentSubject?.supported_paper_types);
   const showPaperSelector = hasPaperTypeSupport(currentSubject);
+
+  async function handleGetAnswer(question, index) {
+    const questionKey = getQuestionKey(question, index);
+
+    if (loadingMap[questionKey]) {
+      return;
+    }
+
+    setLoadingMap((prev) => ({ ...prev, [questionKey]: true }));
+    setErrorMap((prev) => ({ ...prev, [questionKey]: "" }));
+
+    const payload = getQuestionAnswerPayload(question, {
+      selectedLevel,
+      selectedBoard,
+      selectedYear,
+      selectedSubject,
+      selectedPaperType,
+      currentSubject,
+      currentSubjectId: currentSubject?.id ?? null,
+    });
+
+    console.log("Get Answer payload", {
+      endpoint: "/generate-answer",
+      subject_code: payload.subject_code,
+      question_id: payload.question_id,
+      question_type: payload.question_type,
+      payload_question_preview: String(payload.question || "").slice(0, 500),
+      has_options: Array.isArray(payload.metadata?.options) && payload.metadata.options.length > 0,
+      has_description: Boolean(payload.metadata?.description),
+      has_sub_questions: Array.isArray(payload.metadata?.sub_questions) && payload.metadata.sub_questions.length > 0,
+      has_metadata: Boolean(payload.metadata),
+    });
+
+    try {
+      const response = await apiEndpoints.generateQuestionAnswer(payload);
+      console.log(response.data);
+
+      const responseData = response?.data ?? {};
+      const rawAnswer = responseData.answer ?? responseData.generated_answer ?? responseData;
+      const normalizedAnswer = typeof rawAnswer === "string"
+        ? rawAnswer
+        : rawAnswer && typeof rawAnswer === "object"
+          ? JSON.stringify(rawAnswer, null, 2)
+          : String(rawAnswer ?? "");
+
+      setAnswers((prev) => ({
+        ...prev,
+        [questionKey]: normalizedAnswer,
+      }));
+    } catch (error) {
+      logAnswerGenerationError("/generate-answer", payload, error);
+      setErrorMap((prev) => ({
+        ...prev,
+        [questionKey]: getAnswerGenerationErrorMessage(error, "Failed to generate answer."),
+      }));
+    } finally {
+      setLoadingMap((prev) => ({ ...prev, [questionKey]: false }));
+    }
+  }
 
   async function handlePaperTypeChange(nextPaperType) {
     if (!selectedSubject || loadingSubject) {
@@ -694,8 +1026,14 @@ function QuestionsPage() {
                 description={selectedPaperType ? "Try another supported paper type if available." : "This subject is published, but no question records were returned."}
               />
             ) : (
-              questions.map((question, index) => (
-                <article key={question.id || `${question.question_no || index}-${index}`} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
+              questions.map((question, index) => {
+                const questionKey = getQuestionKey(question, index);
+                const isLoadingAnswer = Boolean(loadingMap[questionKey]);
+                const questionAnswer = answers[questionKey];
+                const questionError = errorMap[questionKey];
+
+                return (
+                <article key={questionKey} className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
@@ -723,8 +1061,39 @@ function QuestionsPage() {
                     {question.exam_year && <span className="rounded-full bg-white px-3 py-1">{question.exam_year}</span>}
                     {question.topic && <span className="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">{question.topic}</span>}
                   </div>
+
+                  <div className="mt-5">
+                    <button
+                      type="button"
+                      onClick={() => handleGetAnswer(question, index)}
+                      disabled={isLoadingAnswer}
+                      className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isLoadingAnswer ? "Generating..." : "Get Answer"}
+                    </button>
+
+                    {isLoadingAnswer && (
+                      <p className="mt-3 text-sm text-slate-500">Generating answer...</p>
+                    )}
+
+                    {questionError && (
+                      <p className="mt-3 text-sm text-red-500">{questionError}</p>
+                    )}
+
+                    {questionAnswer && (
+                      <div className="mt-4 overflow-hidden rounded-lg bg-gray-100 p-4 transition-all duration-300 ease-out">
+                        <h4 className="mb-2 font-semibold">Answer:</h4>
+                        <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                          {typeof questionAnswer === "string"
+                            ? questionAnswer
+                            : JSON.stringify(questionAnswer, null, 2)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </article>
-              ))
+                );
+              })
             )}
           </div>
           {totalQuestionPages > 1 && (

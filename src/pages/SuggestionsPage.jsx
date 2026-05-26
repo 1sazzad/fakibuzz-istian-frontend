@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { apiEndpoints, getApiStatus } from "../api/api";
+import { apiEndpoints, getAnswerGenerationErrorMessage, getApiStatus, logAnswerGenerationError } from "../api/api";
 import MathRenderer from "../components/MathRenderer";
 import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";
@@ -682,7 +682,7 @@ function SuggestionsPage() {
     }));
 
     try {
-      const response = await apiEndpoints.generateAnswer({
+      const payload = {
         question: questionText,
         subject_code: cleanSubjectCode,
         answer_type: getAnswerTypeForMarks(numericMarks),
@@ -693,7 +693,9 @@ function SuggestionsPage() {
         diagram_required: Boolean(item.diagram_required),
         diagram_reference: item.diagram_reference || null,
         diagram_description: item.diagram_description || null,
-      });
+      };
+
+      const response = await apiEndpoints.generateAnswer(payload);
 
       setAnswerStates((current) => ({
         ...current,
@@ -712,7 +714,7 @@ function SuggestionsPage() {
         [suggestionKey]: {
           loading: false,
           missingScope: answerMissingScope,
-          error: getQuotaErrorMessage(error) || getSuggestionErrorMessage(error, "Unable to generate answer for this suggestion."),
+          error: getQuotaErrorMessage(error) || getAnswerGenerationErrorMessage(error, "Unable to generate answer for this suggestion."),
           result: null,
         },
       }));

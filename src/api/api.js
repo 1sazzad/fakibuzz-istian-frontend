@@ -38,6 +38,62 @@ export function getAnswerBuilderErrorKind(error) {
   return "unknown";
 }
 
+function getErrorDetailText(error) {
+  const detail = error?.response?.data?.detail ?? error?.response?.data?.message ?? error?.data?.detail ?? error?.data?.message;
+
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item?.msg || item?.message || JSON.stringify(item)).join(", ");
+  }
+
+  if (detail && typeof detail === "object") {
+    return detail.msg || detail.message || JSON.stringify(detail);
+  }
+
+  return String(detail || "").trim();
+}
+
+export function getAnswerGenerationErrorMessage(error, fallback = "Unable to generate answer.") {
+  const status = getApiStatus(error);
+  const detailText = getErrorDetailText(error);
+
+  if (status === 401) {
+    return detailText || "Your session has expired. Please login again.";
+  }
+
+  if (status === 403) {
+    return detailText || "You do not have permission to generate this answer.";
+  }
+
+  if (status === 404) {
+    return detailText || "Subject or endpoint not found.";
+  }
+
+  if (status === 422) {
+    return detailText || "Request format problem. Please check question payload.";
+  }
+
+  if (status === 429) {
+    return detailText || RATE_LIMIT_MESSAGE;
+  }
+
+  if (status === 500) {
+    return detailText || "Backend/AI answer generation failed.";
+  }
+
+  return detailText || error?.message || fallback;
+}
+
+export function logAnswerGenerationError(endpoint, payload, error) {
+  const safePayload = payload && typeof payload === "object" ? { ...payload } : payload;
+
+  console.error("Answer generation request failed", {
+    endpoint,
+    status: getApiStatus(error),
+    responseData: error?.response?.data ?? error?.data ?? null,
+    payload: safePayload,
+  });
+}
+
 const API = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -273,6 +329,7 @@ export const apiEndpoints = {
       params: buildPaperTypeParams({ query, top_k, paper_type }),
     }),
   generateAnswer: (payload) => API.post("/generate-answer", payload),
+  generateQuestionAnswer: (payload) => API.post("/generate-answer", payload),
   submitFeedback: (payload) => API.post("/feedback", payload),
   getPublicFeedback: (params) => API.get("/feedback/public", { params }),
   getDonationInfo: () => API.get("/donation-info"),
