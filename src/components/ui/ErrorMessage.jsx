@@ -12,7 +12,7 @@ function ErrorMessage({ children, tone = "error" }) {
           ? "border-indigo-200 bg-indigo-50 text-indigo-800"
           : "border-rose-200 bg-rose-50 text-rose-700";
 
-  return <div className={`whitespace-pre-line rounded-2xl border px-4 py-3 text-sm leading-6 ${classes}`}>{children}</div>;
+  return <div className={`whitespace-pre-line rounded-[1.25rem] border px-4 py-3 text-sm leading-6 shadow-sm ${classes}`}>{children}</div>;
 }
 
 export default ErrorMessage;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { verifyEmail } from "../api/authApi";
+import BrandLogo from "../components/BrandLogo";
 import { Button, Card, ErrorMessage } from "../components/ui";
 import { getApiErrorMessage } from "../utils/auth";
 
@@ -51,6 +52,7 @@ function VerifyEmailPage() {
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-md">
         <div>
+          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" showTagline />
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Email Verification</p>
           <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Verify your email</h1>
           <p className="mt-2 text-sm text-slate-500">

@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { Menu, Sparkles, X } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 import Button from "./ui/Button";
 import { isSuperAdminRole } from "../utils/auth";
@@ -53,8 +54,6 @@ function getIconForItem(label) {
     Upload: "⬆️",
     Questions: "❓",
     "Manage Questions": "❓",
-    Subjects: "📚",
-    Profile: "👤",
     Universities: "🏛️",
     Departments: "🏢",
     Feedback: "💬",
@@ -64,8 +63,8 @@ function getIconForItem(label) {
 
 function navClass({ isActive }) {
   return [
-    "flex min-h-10 items-center rounded-xl px-3 py-2 text-sm font-medium transition",
-    isActive ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+    "flex min-h-10 items-center rounded-2xl px-3 py-2 text-sm font-medium transition-all",
+    isActive ? "bg-indigo-50 text-indigo-700 shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
   ].join(" ");
 }
 
@@ -74,10 +73,10 @@ function Brand({ onClick }) {
     <Link
       to="/"
       onClick={onClick}
-      className="block min-w-0 cursor-pointer rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      className="block min-w-0 cursor-pointer rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
       aria-label="Go to Q Arena homepage"
     >
-      <BrandLogo className="gap-3" imageClassName="h-10 w-10" textClassName="block truncate text-lg font-semibold tracking-tight text-slate-950" />
+      <BrandLogo className="gap-3" imageClassName="h-10 w-10" textClassName="block truncate text-lg font-semibold tracking-tight text-slate-950" showTagline />
     </Link>
   );
 }
@@ -133,22 +132,17 @@ function Navbar() {
 
   if (!isAuthenticated) {
     return (
-      <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Brand onClick={handleBrandClick} />
           <button
             type="button"
-            className="inline-flex min-h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:hidden"
+            className="inline-flex min-h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 lg:hidden"
             aria-label="Toggle navigation menu"
             aria-expanded={isPublicMenuOpen}
             onClick={() => setIsPublicMenuOpen((current) => !current)}
           >
-            <span className="sr-only">Menu</span>
-            <span className="flex flex-col gap-1.5">
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-            </span>
+            {isPublicMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="hidden items-center gap-2 lg:flex lg:justify-end">
             {navItems.map((item) => {
@@ -171,8 +165,9 @@ function Navbar() {
             })}
             <Link
               to="/register"
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:from-indigo-700 hover:to-cyan-700"
             >
+              <Sparkles className="h-4 w-4" />
               Get Started
             </Link>
           </div>
@@ -181,7 +176,7 @@ function Navbar() {
           <div className="border-t border-slate-100 px-4 pb-4 sm:px-6 lg:hidden">
             <div className="grid gap-2 pt-3">
               {navItems.map((item) => {
-                const commonClass = "flex min-h-11 w-full items-center rounded-xl px-3 py-2 text-sm font-medium transition";
+                const commonClass = "flex min-h-11 w-full items-center rounded-2xl px-3 py-2 text-sm font-medium transition";
 
                 if (item.to.includes("#")) {
                   const itemHash = item.to.slice(item.to.indexOf("#"));
@@ -215,8 +210,9 @@ function Navbar() {
               <Link
                 to="/register"
                 onClick={() => setIsPublicMenuOpen(false)}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-transparent bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 transition hover:from-indigo-700 hover:to-cyan-700"
               >
+                <Sparkles className="h-4 w-4" />
                 Get Started
               </Link>
             </div>
@@ -228,22 +224,17 @@ function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur lg:hidden">
+      <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Brand onClick={handleBrandClick} />
           <button
             type="button"
-            className="inline-flex min-h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+            className="inline-flex min-h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
             aria-label="Toggle navigation menu"
             aria-expanded={isAppMenuOpen}
             onClick={() => setIsAppMenuOpen((current) => !current)}
           >
-            <span className="sr-only">Menu</span>
-            <span className="flex flex-col gap-1.5">
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-              <span className="block h-0.5 w-5 rounded-full bg-current" />
-            </span>
+            {isAppMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
         {isAppMenuOpen && (
@@ -276,7 +267,7 @@ function Navbar() {
       </nav>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden border-r border-slate-200 bg-white transition-all duration-300 lg:flex lg:flex-col ${
+        className={`fixed inset-y-0 left-0 z-40 hidden border-r border-slate-200/80 bg-white/98 transition-all duration-300 lg:flex lg:flex-col ${
           isCollapsed ? "w-20" : "w-72"
         }`}
       >
@@ -287,7 +278,7 @@ function Navbar() {
             <Link
               to="/"
               onClick={handleBrandClick}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white"
               aria-label="Q Arena"
               title="Q Arena"
             >
@@ -297,7 +288,7 @@ function Navbar() {
           <button
             type="button"
             onClick={toggleCollapsed}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
@@ -315,7 +306,7 @@ function Navbar() {
 
         {/* User Info Card */}
         {!isCollapsed && (
-          <div className="mx-4 mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mx-4 mt-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{roleLabel}</p>
             <p className="mt-2 truncate text-sm font-semibold text-slate-950">
               {user?.full_name || user?.email || roleLabel}
@@ -335,7 +326,7 @@ function Navbar() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex min-h-10 items-center rounded-xl transition ${
+                  `flex min-h-10 items-center rounded-2xl transition ${
                   isActive
                     ? "bg-indigo-50 text-indigo-700"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"

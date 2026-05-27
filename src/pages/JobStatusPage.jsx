@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiEndpoints } from "../api/api";
-import { Button, LoadingSpinner } from "../components/ui";
+import { Button, LoadingSpinner, StatCard, StatusBadge } from "../components/ui";
 
 const POLLING_STATUSES = new Set(["queued", "running", "processing"]);
 
@@ -136,12 +136,6 @@ function JobStatusPage() {
     ["Topic Reviews", getCount(job, ["topic_review_count", "total_topic_review_count"])],
   ];
 
-  const statusClass = normalizedStatus === "completed"
-    ? "border-green-200 bg-green-50 text-green-800"
-    : normalizedStatus === "failed"
-      ? "border-rose-200 bg-rose-50 text-rose-800"
-      : "border-amber-200 bg-amber-50 text-amber-800";
-
   if (!jobId) {
     return (
       <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
@@ -185,9 +179,7 @@ function JobStatusPage() {
           {!error && job && (
             <>
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <span className={`rounded-full border px-4 py-2 text-sm font-semibold capitalize ${statusClass}`}>
-                  {normalizedStatus}
-                </span>
+                <StatusBadge status={normalizedStatus} className="capitalize">{normalizedStatus}</StatusBadge>
                 {typeof job.progress === "number" && (
                   <span className="text-sm text-slate-500">{Math.max(0, Math.min(100, job.progress))}% complete</span>
                 )}
@@ -204,11 +196,13 @@ function JobStatusPage() {
               )}
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {counts.map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-                    <p className="mt-2 text-2xl font-semibold text-slate-950">{formatValue(value, "0")}</p>
-                  </div>
+                {counts.map(([label, value], index) => (
+                  <StatCard
+                    key={label}
+                    label={label}
+                    value={formatValue(value, "0")}
+                    tone={index % 3 === 0 ? "indigo" : index % 3 === 1 ? "cyan" : "slate"}
+                  />
                 ))}
               </div>
 

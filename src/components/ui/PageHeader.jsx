@@ -1,10 +1,11 @@
 function PageHeader({ eyebrow, title, description, actions, stats }) {
   return (
-    <header className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 sm:p-6">
+    <header className="min-w-0 overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_50px_rgba(15,23,42,0.07)] sm:p-6 lg:p-7">
+      <div className="mb-6 h-1 w-24 rounded-full bg-gradient-to-r from-indigo-500 via-cyan-500 to-sky-400" aria-hidden="true" />
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-indigo-600">
               {eyebrow}
             </p>
           )}

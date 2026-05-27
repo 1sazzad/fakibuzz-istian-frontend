@@ -56,35 +56,35 @@ function ResetPasswordPage() {
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-md">
         <div>
-          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" />
+          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" showTagline />
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Password Recovery</p>
           <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Reset password</h1>
           <p className="mt-2 text-sm text-slate-500">Choose a new password for your account.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
-            New password
+          <div className="text-sm font-medium text-slate-700">
+            <span>New password</span>
             <PasswordInput
               value={form.new_password}
               onChange={(event) => updateField("new_password", event.target.value)}
               required
               minLength={8}
               placeholder="New password"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
-          </label>
+          </div>
 
-          <label className="block text-sm font-medium text-slate-700">
-            Confirm password
+          <div className="text-sm font-medium text-slate-700">
+            <span>Confirm password</span>
             <PasswordInput
               value={form.confirm_password}
               onChange={(event) => updateField("confirm_password", event.target.value)}
               required
               placeholder="Repeat new password"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
-          </label>
+          </div>
 
           <ErrorMessage>{error}</ErrorMessage>
           <ErrorMessage tone="success">{message}</ErrorMessage>

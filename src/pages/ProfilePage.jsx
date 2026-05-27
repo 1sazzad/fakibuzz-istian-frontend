@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { apiEndpoints } from "../api/api";
 import { useAuth } from "../context/useAuth";
-import { Button, Card, ErrorMessage, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Button, Card, ErrorMessage, PageHeader, ResponsiveContainer, StatCard } from "../components/ui";
 import { getApiErrorMessage } from "../utils/auth";
 import {
   getLookupId,
@@ -211,6 +211,11 @@ function ProfilePage() {
           title={user?.full_name || "User Profile"}
           description="Your account details used across the Q Arena dashboard."
         />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Role" value={user?.role || "student"} tone="indigo" />
+          <StatCard label="Academic level" value={academicDisplay?.academic_level || "Not set"} tone="cyan" />
+          <StatCard label="Profile status" value={missingAcademicProfile ? "Needs setup" : "Complete"} tone={missingAcademicProfile ? "amber" : "green"} />
+        </div>
         {isStudent && (
           <Card as="form" onSubmit={handleSaveAcademicScope} className="space-y-4">
             <div>

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../context/useAuth";
 import ResendVerificationForm from "../components/ResendVerificationForm";
-import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
+import { Button, Card, ErrorMessage, FormInput, PasswordInput } from "../components/ui";
 import { getApiErrorField, getApiErrorMessage, isAdminRole, isUnverifiedEmailError, UNVERIFIED_EMAIL_MESSAGE } from "../utils/auth";
 
 function LoginPage() {
@@ -80,7 +80,7 @@ function LoginPage() {
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-md">
         <div>
-          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" />
+          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" showTagline />
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Student Login</p>
           <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Access your dashboard</h1>
           <p className="mt-2 text-sm text-slate-500">Sign in with your student account.</p>
@@ -91,36 +91,33 @@ function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
-            Email
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) => updateField("email", event.target.value)}
-              required
-              aria-invalid={Boolean(fieldErrors.email)}
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="student@example.com"
-            />
-            <ErrorMessage>{fieldErrors.email}</ErrorMessage>
-          </label>
+          <FormInput
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(event) => updateField("email", event.target.value)}
+            required
+            aria-invalid={Boolean(fieldErrors.email)}
+            placeholder="student@example.com"
+            error={fieldErrors.email}
+          />
 
-          <label className="block text-sm font-medium text-slate-700">
-            Password
+          <div className="text-sm font-medium text-slate-700">
+            <span>Password</span>
             <PasswordInput
               value={form.password}
               onChange={(event) => updateField("password", event.target.value)}
               required
               aria-invalid={Boolean(fieldErrors.password)}
               placeholder="Your password"
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+              className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
             />
             <ErrorMessage>{fieldErrors.password}</ErrorMessage>
-          </label>
+          </div>
 
           <ErrorMessage>{error}</ErrorMessage>
           {showResendVerification && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-sm font-semibold text-slate-950">Need a new verification email?</p>
               <ResendVerificationForm initialEmail={form.email} compact />
             </div>

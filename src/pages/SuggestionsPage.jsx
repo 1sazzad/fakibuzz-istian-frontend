@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { apiEndpoints, getAnswerGenerationErrorMessage, getApiStatus, logAnswerGenerationError } from "../api/api";
+import { apiEndpoints, getAnswerGenerationErrorMessage, getApiStatus } from "../api/api";
 import MathRenderer from "../components/MathRenderer";
 import { Badge, Button, Card, DiagramRenderer, EmptyState, ErrorMessage, LoadingSpinner, PageHeader, PaperTypeSelector, QuestionExtras, ResponsiveContainer } from "../components/ui";
 import { MISSING_STUDENT_SCOPE_MESSAGE, getApiErrorMessage, isMissingStudentScopeError } from "../utils/auth";

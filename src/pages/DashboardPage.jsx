@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import BrandLogo from "../components/BrandLogo";
-import { Badge, Card, ErrorMessage, PageHeader, ResponsiveContainer } from "../components/ui";
+import { Badge, Card, ErrorMessage, PageHeader, ResponsiveContainer, StatCard, SectionCard } from "../components/ui";
 
 const workflows = [
   {
@@ -57,25 +57,17 @@ function DashboardPage() {
         description="Search questions, review predictions, generate answers, and export focused study material from published exam data."
         stats={
           <>
-            <Card className="p-4">
-              <p className="text-sm text-slate-500">Workflows</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-950">{workflows.length}</p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-slate-500">Role</p>
-              <p className="mt-1 text-2xl font-semibold capitalize text-slate-950">{user?.role || "student"}</p>
-            </Card>
-            <Card className="p-4 sm:col-span-2">
-              <p className="text-sm text-slate-500">Account</p>
-              <p className="mt-1 truncate text-lg font-semibold text-slate-950">{user?.email || "Signed in"}</p>
-            </Card>
+            <StatCard label="Workflows" value={workflows.length} helper="Available" tone="indigo" />
+            <StatCard label="Role" value={user?.role || "student"} helper="Access" tone="cyan" />
+            <StatCard label="Account" value={user?.email || "Signed in"} helper="Profile" tone="slate" className="sm:col-span-2" />
           </>
         }
       />
 
       <ErrorMessage tone="warning">{location.state?.message}</ErrorMessage>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <SectionCard eyebrow="Quick start" title="Choose a learning workflow" description="These are the core student actions in Q Arena.">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {workflows.map((item) => (
           <Link key={item.to} to={item.to} className="group">
             <Card className="h-full transition group-hover:-translate-y-0.5 group-hover:border-indigo-200 group-hover:shadow-md">
@@ -87,7 +79,8 @@ function DashboardPage() {
             </Card>
           </Link>
         ))}
-      </section>
+        </div>
+      </SectionCard>
     </ResponsiveContainer>
   );
 }

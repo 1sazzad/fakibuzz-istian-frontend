@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createSuperAdminUser } from "../api/authApi";
-import { Button, Card, ErrorMessage, PasswordInput } from "../components/ui";
+import BrandLogo from "../components/BrandLogo";
+import { Button, Card, ErrorMessage, FormInput, PasswordInput } from "../components/ui";
 import {
   getApiErrorMessage,
   PASSWORD_PATTERN,
@@ -66,16 +67,23 @@ function AdminCreatePage() {
   return (
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-2xl">
+        <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" showTagline />
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Super Admin Setup</p>
         <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Create super admin account</h1>
         <p className="mt-2 text-sm text-slate-500">Use this setup-token flow only for local bootstrap of the first super admin.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
-          <input aria-label="Full name" value={form.full_name} onChange={(event) => updateField("full_name", event.target.value)} required placeholder="Full name" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <input aria-label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} required placeholder="Email" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <input aria-label="Phone number" value={form.phone_number} onChange={(event) => updateField("phone_number", event.target.value)} required placeholder="Phone number" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <PasswordInput ariaLabel="Password" value={form.password} onChange={(event) => updateField("password", event.target.value)} required minLength={8} placeholder="Password" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
-          <PasswordInput ariaLabel="Setup token" value={form.setup_token} onChange={(event) => updateField("setup_token", event.target.value)} placeholder="Setup token" autoComplete="off" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 sm:col-span-2" />
+          <FormInput label="Full name" aria-label="Full name" value={form.full_name} onChange={(event) => updateField("full_name", event.target.value)} required placeholder="Full name" />
+          <FormInput label="Email" aria-label="Email" type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} required placeholder="Email" />
+          <FormInput label="Phone number" aria-label="Phone number" value={form.phone_number} onChange={(event) => updateField("phone_number", event.target.value)} required placeholder="Phone number" />
+          <div className="text-sm font-medium text-slate-700">
+            <span>Password</span>
+            <PasswordInput ariaLabel="Password" value={form.password} onChange={(event) => updateField("password", event.target.value)} required minLength={8} placeholder="Password" className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          </div>
+          <div className="sm:col-span-2 text-sm font-medium text-slate-700">
+            <span>Setup token</span>
+            <PasswordInput ariaLabel="Setup token" value={form.setup_token} onChange={(event) => updateField("setup_token", event.target.value)} placeholder="Setup token" autoComplete="off" className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 pr-10 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          </div>
 
           <div className="sm:col-span-2">
             <ErrorMessage>{error}</ErrorMessage>

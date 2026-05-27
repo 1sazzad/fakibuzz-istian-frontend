@@ -32,7 +32,6 @@ import TermsOfServicePage from "./pages/TermsOfServicePage";
 import ContactPage from "./pages/ContactPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminCreatePage from "./pages/AdminCreatePage";
-import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import JobStatusPage from "./pages/JobStatusPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";

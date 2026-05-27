@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../context/useAuth";
 import { apiEndpoints } from "../api/api";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -88,7 +88,7 @@ function TopicsPage() {
   const initialSubjectCode = String(location.state?.subject_code || "").trim();
   const academicProfileSignature = getAcademicProfileSignature(user);
 
-  async function loadAnalysisData(subjectCode, paperType, subjectOverride = null) {
+  const loadAnalysisData = useCallback(async (subjectCode, paperType, subjectOverride = null) => {
     const subject = subjectOverride || subjects.find((item) => item.subject_code === subjectCode) || null;
     const paperTypeOptions = getPaperTypeOptions(subject, user);
 
@@ -103,7 +103,7 @@ function TopicsPage() {
     }
 
     return apiEndpoints.getSubjectAnalysis(subjectCode);
-  }
+  }, [subjects, user]);
 
   useEffect(() => {
     let active = true;
@@ -163,7 +163,7 @@ function TopicsPage() {
     return () => {
       active = false;
     };
-  }, [academicProfileSignature, initialSubjectCode, user]);
+  }, [academicProfileSignature, initialSubjectCode, loadAnalysisData, user]);
 
   async function handleSubjectChange(event) {
     const subjectCode = event.target.value;

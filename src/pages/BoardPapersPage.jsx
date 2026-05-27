@@ -141,6 +141,7 @@ function BoardPapersPage() {
     }
 
     if (defaultAcademicLevel) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedAcademicLevel((current) => current || defaultAcademicLevel);
       setMessage("");
       setError("");
@@ -408,6 +409,7 @@ function BoardPapersPage() {
     }
 
     if (!renderTypeOptions.some((option) => option.value === renderPaperType)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRenderPaperType(renderTypeOptions[0].value);
     }
   }, [renderPaperType, renderTypeOptions]);

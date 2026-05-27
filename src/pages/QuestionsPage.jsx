@@ -155,7 +155,6 @@ function buildQuestionTextForAnswer(question, pageContext = {}) {
   const board = getOptionalText(question?.board_name || question?.board || pageContext.selectedBoard);
   const section = getOptionalText(question?.section);
   const questionNo = getOptionalText(question?.question_no || question?.questionNo);
-  const instruction = getOptionalText(question?.instruction);
   const description = getOptionalText(question?.description || question?.passage || question?.stem);
   const mainQuestion = getQuestionMainText(question);
   const options = Array.isArray(question?.options) ? question.options.map((option) => getOptionalText(option)).filter(Boolean) : [];

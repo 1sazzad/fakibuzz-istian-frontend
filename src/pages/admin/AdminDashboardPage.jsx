@@ -4,7 +4,7 @@ import { createAdminUser } from "../../api/authApi";
 import { apiEndpoints } from "../../api/api";
 import BrandLogo from "../../components/BrandLogo";
 import { useAuth } from "../../context/useAuth";
-import { Badge, Button, Card, ErrorMessage, PageHeader, PasswordInput, ResponsiveContainer } from "../../components/ui";
+import { Badge, Button, Card, ErrorMessage, PageHeader, PasswordInput, ResponsiveContainer, StatCard, SectionCard } from "../../components/ui";
 import { buildInstitutionMetadata } from "../../utils/institution";
 import {
   getApiErrorMessage,
@@ -205,7 +205,8 @@ function AdminDashboardPage() {
         description="Manage uploaded exams, question records, and published subjects."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <SectionCard eyebrow="Admin quick actions" title="Primary workflows" description="Use these actions to manage the content library quickly.">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {adminWorkflows.map((item) => (
           <Link key={item.to} to={item.to} className="group">
             <Card className="h-full transition group-hover:-translate-y-0.5 group-hover:border-indigo-200 group-hover:shadow-md">
@@ -217,32 +218,20 @@ function AdminDashboardPage() {
             </Card>
           </Link>
         ))}
-      </div>
+        </div>
+      </SectionCard>
 
-      <Card>
+      <SectionCard eyebrow="Analytics" title="Analytics Summary" description="A quick snapshot of site engagement and current admin activity.">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Analytics</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">Analytics Summary</h2>
-          </div>
           {analyticsLoading && <Badge>Loading...</Badge>}
         </div>
 
         <ErrorMessage>{analyticsError}</ErrorMessage>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Total visits</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">{analyticsSummary?.total_visits ?? 0}</p>
-          </div>
-          <div className="rounded-2xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Unique sessions</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">{analyticsSummary?.unique_sessions ?? 0}</p>
-          </div>
-          <div className="rounded-2xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Today visits</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">{analyticsSummary?.today_visits ?? 0}</p>
-          </div>
+          <StatCard label="Total visits" value={analyticsSummary?.total_visits ?? 0} tone="indigo" />
+          <StatCard label="Unique sessions" value={analyticsSummary?.unique_sessions ?? 0} tone="cyan" />
+          <StatCard label="Today visits" value={analyticsSummary?.today_visits ?? 0} tone="green" />
         </div>
 
         <div className="mt-5">
@@ -260,7 +249,7 @@ function AdminDashboardPage() {
             </div>
           )}
         </div>
-      </Card>
+      </SectionCard>
 
       <Card>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

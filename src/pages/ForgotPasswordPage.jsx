@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { forgotPassword } from "../api/authApi";
 import BrandLogo from "../components/BrandLogo";
-import { Button, Card, ErrorMessage } from "../components/ui";
+import { Button, Card, ErrorMessage, FormInput } from "../components/ui";
 import { getApiErrorMessage } from "../utils/auth";
 
 function ForgotPasswordPage() {
@@ -37,24 +37,21 @@ function ForgotPasswordPage() {
     <main className="min-h-[calc(100vh-65px)] overflow-x-hidden bg-slate-50 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
       <Card className="mx-auto max-w-md">
         <div>
-          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" />
+          <BrandLogo className="mb-4 justify-center" imageClassName="h-12 w-12" textClassName="text-center text-xl font-semibold tracking-tight text-slate-950" showTagline />
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Password Recovery</p>
           <h1 className="mt-3 break-words text-2xl font-semibold text-slate-950 sm:text-3xl">Forgot password</h1>
           <p className="mt-2 text-sm text-slate-500">Enter your account email to receive reset instructions.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <label className="block text-sm font-medium text-slate-700">
-            Email
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-              placeholder="student@example.com"
-            />
-          </label>
+          <FormInput
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            placeholder="student@example.com"
+          />
 
           <ErrorMessage>{error}</ErrorMessage>
           <ErrorMessage tone="success">{message}</ErrorMessage>
