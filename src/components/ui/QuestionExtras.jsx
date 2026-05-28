@@ -15,6 +15,17 @@ function isDiagramRequired(value) {
   return value === true || value === "true";
 }
 
+function getReviewFlags(item) {
+  const flags = item?.review_flags ?? item?.reviewFlags;
+
+  if (Array.isArray(flags)) {
+    return flags.map((flag) => getOptionalText(flag)).filter(Boolean);
+  }
+
+  const text = getOptionalText(flags);
+  return text ? [text] : [];
+}
+
 function FormulaDisplay({ latex }) {
   const source = getOptionalText(latex);
   const containerRef = useRef(null);
@@ -72,10 +83,11 @@ function QuestionExtras({ item, className = "", formulaLabel = "Formula" }) {
   const formulaLatex = getOptionalText(item?.formula_latex);
   const diagramRequired = isDiagramRequired(item?.diagram_required);
   const diagramReference = getOptionalText(item?.diagram_reference);
+  const reviewFlags = getReviewFlags(item);
   const institution = getInstitutionDisplay(item);
   const showInstitution = hasInstitutionMetadata(item);
 
-  if (!formulaLatex && !diagramRequired && !diagramReference && !showInstitution) {
+  if (!formulaLatex && !diagramRequired && !diagramReference && !showInstitution && reviewFlags.length === 0) {
     return null;
   }
 
@@ -100,6 +112,17 @@ function QuestionExtras({ item, className = "", formulaLabel = "Formula" }) {
               Source: {diagramReference}
             </span>
           )}
+        </div>
+      )}
+
+      {reviewFlags.length > 0 && (
+        <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+          <span className="rounded-full bg-slate-100 px-3 py-1">Review flags:</span>
+          {reviewFlags.map((flag, index) => (
+            <span key={`${index}-${flag}`} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800">
+              {flag}
+            </span>
+          ))}
         </div>
       )}
 

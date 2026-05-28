@@ -1728,6 +1728,17 @@ function UploadPage() {
                           </button>
                         </div>
 
+                        {Array.isArray(question.review_flags) && question.review_flags.length > 0 && (
+                          <div className="mb-3 flex flex-wrap gap-2 text-xs font-medium text-slate-600">
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-800">Review flags:</span>
+                            {question.review_flags.map((flag, index) => (
+                              <span key={`${index}-${String(flag)}`} className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800">
+                                {String(flag)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="grid gap-3 sm:grid-cols-2">
                           <input
                             value={question.question_no}

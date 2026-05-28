@@ -232,7 +232,7 @@ function buildQuestionTextForAnswer(question, pageContext = {}) {
   return `${prompt}\n\nNow answer this question according to the marks and question type.`.trim();
 }
 
-function getQuestionAnswerPayload(question, pageContext) {
+function getQuestionAnswerPayload(question, pageContext, selection = {}) {
   const questionText = buildQuestionTextForAnswer(question, pageContext);
   const originalQuestionSummary = {
     has_options: Array.isArray(question?.options) && question.options.length > 0,
@@ -243,7 +243,7 @@ function getQuestionAnswerPayload(question, pageContext) {
     ),
   };
 
-  return {
+  const payload = {
     question_id: question?.id ?? null,
     subject_id: question?.subject_id ?? question?.subjectId ?? pageContext.currentSubjectId ?? null,
     subject_code: question?.subject_code ?? question?.subjectCode ?? pageContext.selectedSubject ?? null,
@@ -292,6 +292,16 @@ function getQuestionAnswerPayload(question, pageContext) {
       original_question_object_summary: originalQuestionSummary,
     },
   };
+
+  if (selection.sub_question_label) {
+    payload.sub_question_label = selection.sub_question_label;
+  }
+
+  if (selection.answer_mode) {
+    payload.answer_mode = selection.answer_mode;
+  }
+
+  return payload;
 }
 
 function getSubQuestionText(subQuestion) {
@@ -308,6 +318,18 @@ function getSubQuestionMarks(subQuestion) {
   }
 
   return subQuestion.marks ?? subQuestion.question_marks ?? subQuestion.total_marks ?? null;
+}
+
+function getSubQuestionAnswerMode(subQuestion) {
+  if (!subQuestion || typeof subQuestion === "string") {
+    return "";
+  }
+
+  return getOptionalText(
+    subQuestion?.solver_metadata?.answer_mode ||
+      subQuestion?.solverMetadata?.answer_mode ||
+      subQuestion?.solverMetadata?.answerMode,
+  );
 }
 
 function getSubQuestionLabel(subQuestion, index) {
@@ -400,7 +422,7 @@ function renderStructuredData(value) {
   return <p className="whitespace-pre-line text-sm leading-6 text-slate-700">{String(value)}</p>;
 }
 
-function QuestionBody({ question, paperType }) {
+function QuestionBody({ question, paperType, selectedSubQuestionLabel, onSelectSubQuestion }) {
   const resolvedPaperType = getQuestionPaperType(question, paperType);
   const questionText = getQuestionText(question);
   const subQuestions = Array.isArray(question?.sub_questions) ? question.sub_questions : [];
@@ -468,17 +490,46 @@ function QuestionBody({ question, paperType }) {
 
       {(resolvedPaperType === "CQ" || resolvedPaperType === "WRITTEN") && subQuestions.length > 0 && (
         <div className="space-y-2">
+          {typeof onSelectSubQuestion === "function" && (
+            <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs font-medium text-cyan-800">
+              Select one sub-question for answer generation.
+            </div>
+          )}
           {subQuestions.map((subQuestion, subIndex) => {
             const subQuestionText = getSubQuestionText(subQuestion);
             const marks = getSubQuestionMarks(subQuestion);
             const subOptions = Array.isArray(subQuestion?.options) ? subQuestion.options : [];
+            const subQuestionLabel = getSubQuestionLabel(subQuestion, subIndex);
+            const answerMode = getSubQuestionAnswerMode(subQuestion);
+            const isSelected = selectedSubQuestionLabel && selectedSubQuestionLabel === subQuestionLabel;
             return (
-              <div key={`${subIndex}-${subQuestionText}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-700">
-                <span className="font-semibold text-slate-950">{getSubQuestionLabel(subQuestion, subIndex)}</span>{" "}
-                {subQuestionText || "No sub-question text provided."}
-                {marks !== null && marks !== undefined && marks !== "" && (
-                  <span className="ml-2 text-xs font-semibold text-slate-500">— {marks} marks</span>
-                )}
+              <div
+                key={`${subIndex}-${subQuestionText}`}
+                className={`rounded-xl border px-3 py-2 text-sm leading-6 ${isSelected ? "border-cyan-300 bg-cyan-50 text-cyan-950" : "border-slate-200 bg-white text-slate-700"}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="font-semibold text-slate-950">{subQuestionLabel}</span>{" "}
+                    {subQuestionText || "No sub-question text provided."}
+                    {marks !== null && marks !== undefined && marks !== "" && (
+                      <span className="ml-2 text-xs font-semibold text-slate-500">— {marks} marks</span>
+                    )}
+                    {answerMode && (
+                      <span className="ml-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                        {answerMode}
+                      </span>
+                    )}
+                  </div>
+                  {typeof onSelectSubQuestion === "function" && (
+                    <button
+                      type="button"
+                      onClick={() => onSelectSubQuestion(subQuestionLabel)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${isSelected ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                    >
+                      {isSelected ? "Selected" : "Use for answer"}
+                    </button>
+                  )}
+                </div>
                 {resolvedPaperType === "WRITTEN" && subOptions.length > 0 && (
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {subOptions.map((option, optionIndex) => (
@@ -522,6 +573,7 @@ function QuestionsPage() {
   const [answers, setAnswers] = useState({});
   const [loadingMap, setLoadingMap] = useState({});
   const [errorMap, setErrorMap] = useState({});
+  const [selectedSubQuestionMap, setSelectedSubQuestionMap] = useState({});
   const [booting, setBooting] = useState(true);
   const [loadingSubject, setLoadingSubject] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -538,6 +590,7 @@ function QuestionsPage() {
       setAnswers({});
       setLoadingMap({});
       setErrorMap({});
+      setSelectedSubQuestionMap({});
       return;
     }
 
@@ -563,6 +616,7 @@ function QuestionsPage() {
       setAnswers({});
       setLoadingMap({});
       setErrorMap({});
+      setSelectedSubQuestionMap({});
       setMissingScope(false);
       setMessage(`Loaded published data for ${subjectCode}${paperType ? ` (${paperType})` : ""}.`);
     } catch (error) {
@@ -574,6 +628,7 @@ function QuestionsPage() {
       setAnswers({});
       setLoadingMap({});
       setErrorMap({});
+      setSelectedSubQuestionMap({});
       setMissingScope(isMissingStudentScopeError(error));
       setMessage(getApiErrorMessage(error, "Unable to load subject data right now."));
     } finally {
@@ -723,6 +778,12 @@ function QuestionsPage() {
     setLoadingMap((prev) => ({ ...prev, [questionKey]: true }));
     setErrorMap((prev) => ({ ...prev, [questionKey]: "" }));
 
+    const subQuestions = Array.isArray(question?.sub_questions) ? question.sub_questions : [];
+    const selectedSubQuestionLabel = selectedSubQuestionMap[questionKey] || "";
+    const selectedSubQuestion = selectedSubQuestionLabel
+      ? subQuestions.find((subQuestion, subIndex) => getSubQuestionLabel(subQuestion, subIndex) === selectedSubQuestionLabel)
+      : null;
+
     const payload = getQuestionAnswerPayload(question, {
       selectedLevel,
       selectedBoard,
@@ -731,6 +792,9 @@ function QuestionsPage() {
       selectedPaperType,
       currentSubject,
       currentSubjectId: currentSubject?.id ?? null,
+    }, {
+      sub_question_label: selectedSubQuestionLabel || null,
+      answer_mode: getSubQuestionAnswerMode(selectedSubQuestion) || null,
     });
 
     console.log("Get Answer payload", {
@@ -779,6 +843,13 @@ function QuestionsPage() {
 
     setSelectedPaperType(nextPaperType);
     await loadSubjectData(selectedSubject, 1, nextPaperType);
+  }
+
+  function handleSelectSubQuestion(questionKey, subQuestionLabel) {
+    setSelectedSubQuestionMap((prev) => ({
+      ...prev,
+      [questionKey]: subQuestionLabel,
+    }));
   }
 
   if (booting) {
@@ -1052,7 +1123,12 @@ function QuestionsPage() {
                     )}
                   </div>
 
-                  <QuestionBody question={question} paperType={selectedPaperType} />
+                  <QuestionBody
+                    question={question}
+                    paperType={selectedPaperType}
+                    selectedSubQuestionLabel={selectedSubQuestionMap[questionKey] || ""}
+                    onSelectSubQuestion={(subQuestionLabel) => handleSelectSubQuestion(questionKey, subQuestionLabel)}
+                  />
                   <QuestionExtras item={question} />
 
                   <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-600">
